@@ -1,0 +1,372 @@
+{
+  "tenants": [
+    {
+      "id": "nb-cakes",
+      "name": "NB Cakes & Desserts",
+      "code": "nb",
+      "businessType": "Bakery & Cake Shop",
+      "tagline": "Freshly Baked Goodness & Artisan Cakes",
+      "currency": "₹",
+      "themeColor": "#c8860a",
+      "accentColor": "#3d1f0a",
+      "logoUrl": "",
+      "gstRate": 5,
+      "b1name": "Flagship Store",
+      "b2name": "Express Kiosk",
+      "b3name": "Delivery Hub",
+      "pins": {
+        "admin": "1234",
+        "b1": "1111",
+        "b2": "2222",
+        "b3": "3333"
+      },
+      "createdAt": "2026-09-02T16:18:38.784Z"
+    },
+    {
+      "id": "urban-bites",
+      "name": "Urban Bites & Cafe",
+      "code": "ub",
+      "businessType": "Cafe & Fast Food",
+      "tagline": "Artisanal Coffee & Gourmet Street Food",
+      "currency": "$",
+      "themeColor": "#2563eb",
+      "accentColor": "#0f172a",
+      "logoUrl": "",
+      "gstRate": 8,
+      "b1name": "Main Cafe",
+      "b2name": "Drive Thru",
+      "b3name": "Pop-up Cart",
+      "pins": {
+        "admin": "1234",
+        "b1": "1111",
+        "b2": "2222",
+        "b3": "3333"
+      },
+      "createdAt": "2026-09-02T16:18:38.784Z"
+    },
+    {
+      "id": "test-bakery-5081",
+      "name": "Test Bakery",
+      "code": "testbake",
+      "username": "testbake",
+      "password": "pos1567",
+      "businessType": "Food & Retail",
+      "tagline": "Quality Products & Efficient Service",
+      "currency": "₹",
+      "themeColor": "#c8860a",
+      "accentColor": "#3d1f0a",
+      "logoUrl": "",
+      "gstRate": 5,
+      "b1name": "Main Branch",
+      "b2name": "Counter 2",
+      "b3name": "Delivery Unit",
+      "pins": {
+        "admin": "1234",
+        "b1": "1111",
+        "b2": "2222",
+        "b3": "3333"
+      },
+      "isOnboarded": false,
+      "createdAt": "2026-09-02T16:20:17.539Z"
+    },
+    {
+      "id": "artisan-coffee-roasters-6771",
+      "name": "Artisan Coffee Roasters",
+      "code": "artisanc",
+      "username": "artisanc",
+      "password": "pos1788",
+      "businessType": "Cafe",
+      "tagline": "Quality Products & Efficient Service",
+      "currency": "$",
+      "themeColor": "#10b981",
+      "accentColor": "#3d1f0a",
+      "logoUrl": "",
+      "gstRate": 5,
+      "b1name": "Main Branch",
+      "b2name": "Counter 2",
+      "b3name": "Delivery Unit",
+      "pins": {
+        "admin": "1234",
+        "b1": "1111",
+        "b2": "2222",
+        "b3": "3333"
+      },
+      "isOnboarded": false,
+      "createdAt": "2026-09-02T16:24:05.591Z"
+    }
+  ],
+  "products": {
+    "nb-cakes": [
+      {
+        "id": "prod_1",
+        "name": "Signature Chocolate Brownie",
+        "cat": "Brownies",
+        "price": 95,
+        "cost": 45,
+        "b1Stock": 35,
+        "b2Stock": 20,
+        "b3Stock": 15,
+        "reorder": 10,
+        "unit": "pcs"
+      },
+      {
+        "id": "prod_2",
+        "name": "Red Velvet Classic Slice",
+        "cat": "Cakes",
+        "price": 120,
+        "cost": 55,
+        "b1Stock": 20,
+        "b2Stock": 12,
+        "b3Stock": 8,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "prod_3",
+        "name": "Nutella Stuffed Bun",
+        "cat": "Buns",
+        "price": 80,
+        "cost": 35,
+        "b1Stock": 25,
+        "b2Stock": 15,
+        "b3Stock": 10,
+        "reorder": 8,
+        "unit": "pcs"
+      },
+      {
+        "id": "prod_4",
+        "name": "Tres Leches Classic Box",
+        "cat": "Tres Leches",
+        "price": 180,
+        "cost": 85,
+        "b1Stock": 15,
+        "b2Stock": 10,
+        "b3Stock": 5,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "prod_5",
+        "name": "Lotus Biscoff Cheesecake",
+        "cat": "Cheesecake",
+        "price": 190,
+        "cost": 90,
+        "b1Stock": 18,
+        "b2Stock": 8,
+        "b3Stock": 6,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "prod_6",
+        "name": "Iced Caramel Macchiato",
+        "cat": "Beverages",
+        "price": 130,
+        "cost": 40,
+        "b1Stock": 50,
+        "b2Stock": 40,
+        "b3Stock": 30,
+        "reorder": 15,
+        "unit": "cups"
+      }
+    ],
+    "urban-bites": [
+      {
+        "id": "ub_1",
+        "name": "Smash Truffle Burger",
+        "cat": "Burgers",
+        "price": 12,
+        "cost": 5,
+        "b1Stock": 40,
+        "b2Stock": 25,
+        "b3Stock": 15,
+        "reorder": 10,
+        "unit": "pcs"
+      },
+      {
+        "id": "ub_2",
+        "name": "Loaded Peri-Peri Fries",
+        "cat": "Sides",
+        "price": 6,
+        "cost": 2,
+        "b1Stock": 60,
+        "b2Stock": 40,
+        "b3Stock": 20,
+        "reorder": 15,
+        "unit": "pcs"
+      },
+      {
+        "id": "ub_3",
+        "name": "Cold Brew Oat Latte",
+        "cat": "Beverages",
+        "price": 5.5,
+        "cost": 1.8,
+        "b1Stock": 50,
+        "b2Stock": 30,
+        "b3Stock": 25,
+        "reorder": 10,
+        "unit": "cups"
+      }
+    ],
+    "test-bakery-5081": [
+      {
+        "id": "item_1788366017548_0",
+        "name": "Signature Chocolate Brownie",
+        "cat": "Brownies",
+        "price": 95,
+        "cost": 45,
+        "b1Stock": 35,
+        "b2Stock": 20,
+        "b3Stock": 15,
+        "reorder": 10,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366017548_1",
+        "name": "Red Velvet Classic Slice",
+        "cat": "Cakes",
+        "price": 120,
+        "cost": 55,
+        "b1Stock": 20,
+        "b2Stock": 12,
+        "b3Stock": 8,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366017548_2",
+        "name": "Nutella Stuffed Bun",
+        "cat": "Buns",
+        "price": 80,
+        "cost": 35,
+        "b1Stock": 25,
+        "b2Stock": 15,
+        "b3Stock": 10,
+        "reorder": 8,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366017548_3",
+        "name": "Tres Leches Classic Box",
+        "cat": "Tres Leches",
+        "price": 180,
+        "cost": 85,
+        "b1Stock": 15,
+        "b2Stock": 10,
+        "b3Stock": 5,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366017548_4",
+        "name": "Lotus Biscoff Cheesecake",
+        "cat": "Cheesecake",
+        "price": 190,
+        "cost": 90,
+        "b1Stock": 18,
+        "b2Stock": 8,
+        "b3Stock": 6,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366017548_5",
+        "name": "Iced Caramel Macchiato",
+        "cat": "Beverages",
+        "price": 130,
+        "cost": 40,
+        "b1Stock": 50,
+        "b2Stock": 40,
+        "b3Stock": 30,
+        "reorder": 15,
+        "unit": "cups"
+      }
+    ],
+    "artisan-coffee-roasters-6771": [
+      {
+        "id": "item_1788366245633_0",
+        "name": "Signature Chocolate Brownie",
+        "cat": "Brownies",
+        "price": 95,
+        "cost": 45,
+        "b1Stock": 35,
+        "b2Stock": 20,
+        "b3Stock": 15,
+        "reorder": 10,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366245633_1",
+        "name": "Red Velvet Classic Slice",
+        "cat": "Cakes",
+        "price": 120,
+        "cost": 55,
+        "b1Stock": 20,
+        "b2Stock": 12,
+        "b3Stock": 8,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366245633_2",
+        "name": "Nutella Stuffed Bun",
+        "cat": "Buns",
+        "price": 80,
+        "cost": 35,
+        "b1Stock": 25,
+        "b2Stock": 15,
+        "b3Stock": 10,
+        "reorder": 8,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366245633_3",
+        "name": "Tres Leches Classic Box",
+        "cat": "Tres Leches",
+        "price": 180,
+        "cost": 85,
+        "b1Stock": 15,
+        "b2Stock": 10,
+        "b3Stock": 5,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366245633_4",
+        "name": "Lotus Biscoff Cheesecake",
+        "cat": "Cheesecake",
+        "price": 190,
+        "cost": 90,
+        "b1Stock": 18,
+        "b2Stock": 8,
+        "b3Stock": 6,
+        "reorder": 5,
+        "unit": "pcs"
+      },
+      {
+        "id": "item_1788366245633_5",
+        "name": "Iced Caramel Macchiato",
+        "cat": "Beverages",
+        "price": 130,
+        "cost": 40,
+        "b1Stock": 50,
+        "b2Stock": 40,
+        "b3Stock": 30,
+        "reorder": 15,
+        "unit": "cups"
+      }
+    ]
+  },
+  "sales": {
+    "test-bakery-5081": [],
+    "artisan-coffee-roasters-6771": []
+  },
+  "stockLogs": {
+    "test-bakery-5081": [],
+    "artisan-coffee-roasters-6771": []
+  },
+  "transfers": {
+    "test-bakery-5081": [],
+    "artisan-coffee-roasters-6771": []
+  }
+}

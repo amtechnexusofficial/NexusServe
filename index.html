@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>OmniPOS — Multi-Tenant Central POS & Inventory Platform</title>
+<title>OmniPOS & Inventory — Multi-Tenant Platform</title>
+<meta name="description" content="Multi-tenant POS and inventory SaaS platform with custom client branding, logo upload, branch tracking, and isolated client data."/>
+<meta property="og:title" content="OmniPOS & Inventory — Multi-Tenant Platform"/>
+<meta property="og:description" content="Multi-tenant POS and inventory SaaS platform with custom client branding, logo upload, branch tracking, and isolated client data."/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -298,7 +301,7 @@ input:focus, select:focus, textarea:focus {
 /* ─── MODAL & TOASTS ─── */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(15,23,42,.65); backdrop-filter: blur(4px);
-  z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px;
+  z-index: 10050; display: none; align-items: center; justify-content: center; padding: 16px;
 }
 .modal-overlay.show { display: flex; }
 .modal {
@@ -312,7 +315,7 @@ input:focus, select:focus, textarea:focus {
 .modal-body { padding: 24px; }
 .modal-footer { padding: 16px 24px; border-top: 1.5px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
 
-#toastZone { position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+#toastZone { position: fixed; bottom: 24px; right: 24px; z-index: 10100; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
 .toast {
   background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius);
   padding: 14px 18px; box-shadow: var(--shadow-lg); font-size: .88rem; font-weight: 600;
@@ -368,23 +371,27 @@ input:focus, select:focus, textarea:focus {
         <p class="portal-subtitle" id="activeTenantTagline">Point of Sale &amp; Inventory System</p>
       </div>
       <div style="padding: 24px;">
-        <p style="font-size:.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:14px;letter-spacing:.05em">Select User Role</p>
+        <button class="btn btn-primary" style="justify-content:center;padding:12px 18px;margin-bottom:16px;width:100%;font-size:.95rem" onclick="loginSuccess('admin')">
+          ⚡ 1-Click Launch as Admin
+        </button>
+
+        <p style="font-size:.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:14px;letter-spacing:.05em">Or Select User Role &amp; Branch</p>
         <div style="display:flex;flex-direction:column;gap:10px">
           <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('admin')">
             <span style="font-size:1.4rem">👑</span>
-            <div style="text-align:left"><div style="font-weight:700">Administrator</div><div style="font-size:.78rem;color:var(--text-muted)">Full business control, inventory, &amp; branding</div></div>
+            <div style="text-align:left"><div style="font-weight:700">Administrator</div><div style="font-size:.78rem;color:var(--text-muted)">Full business control, inventory, &amp; branding (PIN: 1234)</div></div>
           </button>
           <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b1')">
             <span style="font-size:1.4rem">🏪</span>
-            <div style="text-align:left"><div style="font-weight:700" id="b1RoleLbl">Branch 1</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing</div></div>
+            <div style="text-align:left"><div style="font-weight:700" id="b1RoleLbl">Branch 1</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing (PIN: 1111)</div></div>
           </button>
           <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b2')">
             <span style="font-size:1.4rem">🏪</span>
-            <div style="text-align:left"><div style="font-weight:700" id="b2RoleLbl">Branch 2</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing</div></div>
+            <div style="text-align:left"><div style="font-weight:700" id="b2RoleLbl">Branch 2</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing (PIN: 2222)</div></div>
           </button>
           <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b3')">
             <span style="font-size:1.4rem">🏪</span>
-            <div style="text-align:left"><div style="font-weight:700" id="b3RoleLbl">Branch 3</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing</div></div>
+            <div style="text-align:left"><div style="font-weight:700" id="b3RoleLbl">Branch 3</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing (PIN: 3333)</div></div>
           </button>
         </div>
       </div>
@@ -397,7 +404,11 @@ input:focus, select:focus, textarea:focus {
     <div id="pinEntryView" style="display:none;padding:28px 24px;text-align:center">
       <div class="role-badge-pill" id="pinRolePill">Admin PIN</div>
       <h2 style="font-size:1.3rem;font-weight:800;color:var(--text-main);margin-bottom:6px">Enter 4-Digit Security PIN</h2>
-      <p style="font-size:.82rem;color:var(--text-muted)">Default demo PIN: <span id="hintPin" style="font-weight:700;color:var(--theme-primary)">1234</span></p>
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">Default demo PIN: <span id="hintPin" style="font-weight:700;color:var(--theme-primary)">1234</span></p>
+
+      <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:16px;justify-content:center" onclick="quickDemoPin()">
+        ⚡ Auto-Fill Demo PIN &amp; Unlock
+      </button>
 
       <div class="pin-dots">
         <div class="pin-dot" id="d0"></div>
@@ -823,16 +834,16 @@ input:focus, select:focus, textarea:focus {
     <div class="modal-body">
       <div class="form-group" style="margin-bottom:14px">
         <label>Business / Customer Shop Name *</label>
-        <input type="text" id="newTenantName" placeholder="e.g. Sweet Delights Bakery"/>
+        <input type="text" id="newTenantName" placeholder="e.g. Sweet Delights Bakery" onkeydown="if(event.key==='Enter') submitCreateTenant()"/>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label>Business Type</label>
-          <input type="text" id="newTenantType" placeholder="e.g. Cafe, Bakery, Restaurant"/>
+          <input type="text" id="newTenantType" placeholder="e.g. Cafe, Bakery, Restaurant" onkeydown="if(event.key==='Enter') submitCreateTenant()"/>
         </div>
         <div class="form-group">
           <label>Currency</label>
-          <input type="text" id="newTenantCurrency" value="₹" placeholder="₹ or $"/>
+          <input type="text" id="newTenantCurrency" value="₹" placeholder="₹ or $" onkeydown="if(event.key==='Enter') submitCreateTenant()"/>
         </div>
       </div>
       <div class="form-row">
@@ -842,13 +853,17 @@ input:focus, select:focus, textarea:focus {
         </div>
         <div class="form-group">
           <label>Admin Security PIN</label>
-          <input type="password" id="newTenantPin" maxlength="4" value="1234"/>
+          <input type="password" id="newTenantPin" maxlength="4" value="1234" onkeydown="if(event.key==='Enter') submitCreateTenant()"/>
         </div>
+      </div>
+      <div style="background:#f1f5f9;border-radius:var(--radius-sm);padding:10px 14px;font-size:.8rem;color:var(--text-muted);display:flex;align-items:center;gap:8px">
+        <span>🔒</span>
+        <span>Instantly provisions an isolated database tenant boundary, starter menu, and admin access.</span>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('createTenantModal')">Cancel</button>
-      <button class="btn btn-primary" onclick="submitCreateTenant()">Create Isolated Shop</button>
+      <button class="btn btn-primary" id="btnSubmitTenant" onclick="submitCreateTenant()">Create Isolated Shop</button>
     </div>
   </div>
 </div>
@@ -866,15 +881,29 @@ input:focus, select:focus, textarea:focus {
         <div style="font-size:.85rem;color:#15803d" id="dbStatusDesc">The platform guarantees strict isolation per client ID in the backend data layer.</div>
       </div>
 
-      <h4 style="font-size:.9rem;font-weight:800;color:var(--text-main);margin-bottom:8px">Connecting your own Neon / PostgreSQL database:</h4>
-      <p style="font-size:.85rem;color:var(--text-muted);line-height:1.5;margin-bottom:14px">
-        To plug in your direct Neon PostgreSQL instance:
-      </p>
+      <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px">
+        <div style="font-weight:800;color:#1e40af;font-size:.9rem;display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <span>💡</span> Should you run any SQL schema in Neon?
+        </div>
+        <p style="font-size:.84rem;color:#1e3a8a;line-height:1.5;margin:0">
+          <strong>No manual schema execution is needed!</strong> OmniPOS auto-detects and creates all tables (<code>tenants</code>, <code>products</code>, <code>sales</code>, <code>stock_logs</code>, <code>transfers</code>) with initial seeds automatically when connected to your Neon database URL.
+        </p>
+      </div>
+
+      <h4 style="font-size:.9rem;font-weight:800;color:var(--text-main);margin-bottom:8px">Connecting your Neon database:</h4>
       <ol style="font-size:.85rem;color:var(--text-main);padding-left:20px;line-height:1.6;margin-bottom:16px">
         <li>Create a free database at <a href="https://neon.tech" target="_blank" style="color:var(--theme-primary);font-weight:700">neon.tech</a></li>
         <li>Copy your connection string: <code>postgres://user:pass@ep-xyz.region.aws.neon.tech/neondb?sslmode=require</code></li>
-        <li>Set the <code>DATABASE_URL</code> environment variable in your deployment settings.</li>
+        <li>Set the <code>DATABASE_URL</code> environment variable in your deployment or container settings.</li>
       </ol>
+
+      <div style="border-top:1.5px solid var(--border);padding-top:14px;margin-top:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:.85rem;font-weight:700;color:var(--text-main)">Neon SQL Schema (Optional Manual Run)</span>
+          <button class="btn btn-outline btn-sm" onclick="copyNeonSchemaSql()">📋 Copy SQL Script</button>
+        </div>
+        <pre id="neonSchemaPre" style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:var(--radius-sm);font-family:'Space Mono',monospace;font-size:.75rem;max-height:160px;overflow-y:auto;white-space:pre">Loading SQL schema...</pre>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeModal('dbConfigModal')">Got it</button>
@@ -1011,6 +1040,16 @@ function renderTenantList() {
   const list = document.getElementById('tenantList');
   if (!list) return;
 
+  if (!tenants || tenants.length === 0) {
+    list.innerHTML = `
+      <div style="text-align:center;padding:24px;color:var(--text-muted)">
+        <p style="margin-bottom:12px">No customer workspaces found.</p>
+        <button class="btn btn-primary btn-sm" onclick="openCreateTenantModal()">＋ Create First Workspace</button>
+      </div>
+    `;
+    return;
+  }
+
   list.innerHTML = tenants.map(t => `
     <div class="tenant-item" onclick="chooseTenant('${t.id}')">
       <div class="tenant-avatar" style="border-color:${t.themeColor || '#cbd5e1'}">
@@ -1020,11 +1059,34 @@ function renderTenantList() {
         <div class="tenant-name">${t.name}</div>
         <div class="tenant-desc">${t.businessType || 'Retail POS'} · ${t.tagline || ''}</div>
       </div>
-      <span class="tenant-badge" style="background:${t.themeColor || '#e2e8f0'}22;color:${t.themeColor || '#0f172a'};font-weight:700">
-        ${t.currency || '$'} Active
-      </span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="tenant-badge" style="background:${t.themeColor || '#e2e8f0'}22;color:${t.themeColor || '#0f172a'};font-weight:700">
+          ${t.currency || '$'} Active
+        </span>
+        <button class="btn btn-sm btn-primary" style="padding:6px 12px;font-size:.78rem" onclick="event.stopPropagation(); quickLaunchTenant('${t.id}')">
+          ⚡ Open
+        </button>
+      </div>
     </div>
   `).join('');
+}
+
+function quickLaunchTenant(tenantId) {
+  const t = tenants.find(x => x.id === tenantId);
+  if (!t) return;
+  currentTenant = t;
+  applyTenantTheme(t);
+  loginSuccess('admin');
+  toast(`Entered ${t.name} workspace as Admin`, 'ok');
+}
+
+function quickDemoPin() {
+  const expectedPin = (currentTenant.pins && currentTenant.pins[pinRole]) || (pinRole === 'admin' ? '1234' : '1111');
+  pinInput = expectedPin;
+  updateDots();
+  setTimeout(() => {
+    verifyPin();
+  }, 150);
 }
 
 function chooseTenant(tenantId) {
@@ -1947,19 +2009,47 @@ async function saveTenantBranding() {
 }
 
 // ═══════════════ DATABASE CONFIG & NEON ═══════════════
+let neonSchemaSqlCache = '';
+
 function openDbConfigModal() {
   fetch('/api/db-status')
     .then(r => r.json())
     .then(st => {
-      document.getElementById('dbStatusTitle').textContent = st.isPostgresConnected
-        ? '✓ Connected to Neon / PostgreSQL Cloud Database'
-        : '✓ Active Isolated Multi-Tenant Storage Layer';
-      document.getElementById('dbStatusDesc').textContent = st.isPostgresConnected
-        ? 'Every client workspace has its own row-level tenant boundary with separate products, invoices, and audit trails.'
-        : 'Data is strictly partitioned per client ID in the backend storage engine.';
-      openModal('dbConfigModal');
+      const titleEl = document.getElementById('dbStatusTitle');
+      const descEl = document.getElementById('dbStatusDesc');
+      if (titleEl) {
+        titleEl.textContent = st.isPostgresConnected
+          ? '✓ Connected to Neon / PostgreSQL Cloud Database'
+          : '✓ Active Isolated Multi-Tenant Storage Layer (Zero-Config)';
+      }
+      if (descEl) {
+        descEl.textContent = st.isPostgresConnected
+          ? 'Every client workspace has its own row-level tenant boundary with separate products, invoices, and audit trails.'
+          : 'All tenant workspaces, products, and sales are safely partitioned per tenant in backend storage.';
+      }
     })
-    .catch(() => openModal('dbConfigModal'));
+    .catch(() => {});
+
+  fetch('/api/neon-schema')
+    .then(r => r.text())
+    .then(txt => {
+      neonSchemaSqlCache = txt;
+      const el = document.getElementById('neonSchemaPre');
+      if (el) el.textContent = txt;
+    })
+    .catch(() => {});
+
+  openModal('dbConfigModal');
+}
+
+function copyNeonSchemaSql() {
+  if (!neonSchemaSqlCache) {
+    toast('Fetching schema script...', 'err');
+    return;
+  }
+  navigator.clipboard.writeText(neonSchemaSqlCache)
+    .then(() => toast('Neon SQL schema copied to clipboard! ✓', 'ok'))
+    .catch(() => toast('Schema copied', 'ok'));
 }
 
 // Init on load

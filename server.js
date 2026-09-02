@@ -407,6 +407,19 @@ app.post('/api/tenants', async (req, res) => {
         newTenant.accentColor, newTenant.logoUrl, newTenant.gstRate, newTenant.b1name,
         newTenant.b2name, newTenant.b3name, JSON.stringify(newTenant.pins), newTenant.isOnboarded
       ]);
+
+      for (let i = 0; i < DEFAULT_SEED_ITEMS.length; i++) {
+        const p = DEFAULT_SEED_ITEMS[i];
+        const seedId = 'prod_' + uuidv4().slice(0, 8);
+        await pool.query(`
+          INSERT INTO products (id, tenant_id, name, cat, price, cost, b1_stock, b2_stock, b3_stock, reorder, unit)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (id) DO NOTHING
+        `, [
+          seedId, newTenant.id, p.name, p.cat, p.price, p.cost || 0,
+          p.b1Stock || 0, p.b2Stock || 0, p.b3Stock || 0, p.reorder || 5, p.unit || 'pcs'
+        ]);
+      }
     } catch (e) {
       console.error('Error inserting tenant into PG:', e);
     }
@@ -708,6 +721,95 @@ app.get('/api/db-status', (req, res) => {
     totalTenants: localDb.tenants.length,
     storageType: pool ? 'Neon / PostgreSQL Cloud Database' : 'Isolated Multi-Tenant In-Memory / File Storage'
   });
+});
+
+// Provide full ready-to-run PostgreSQL schema script for Neon SQL Console
+app.get('/api/neon-schema', (req, res) => {
+  const schemaSql = `-- OmniPOS Neon PostgreSQL Schema
+-- Tables are automatically created and initialized by server.js on startup.
+-- You can also run this script directly in the Neon SQL Editor console if desired.
+
+CREATE TABLE IF NOT EXISTS tenants (
+  id VARCHAR(100) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  code VARCHAR(50) UNIQUE,
+  username VARCHAR(100) UNIQUE,
+  password VARCHAR(100),
+  business_type VARCHAR(100),
+  tagline TEXT,
+  currency VARCHAR(10) DEFAULT '$',
+  theme_color VARCHAR(50) DEFAULT '#c8860a',
+  accent_color VARCHAR(50) DEFAULT '#3d1f0a',
+  logo_url TEXT,
+  gst_rate NUMERIC DEFAULT 5,
+  b1name VARCHAR(100) DEFAULT 'Branch 1',
+  b2name VARCHAR(100) DEFAULT 'Branch 2',
+  b3name VARCHAR(100) DEFAULT 'Branch 3',
+  pins JSONB DEFAULT '{"admin":"1234","b1":"1111","b2":"2222","b3":"3333"}',
+  is_onboarded BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS products (
+  id VARCHAR(100) PRIMARY KEY,
+  tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  cat VARCHAR(100),
+  price NUMERIC NOT NULL,
+  cost NUMERIC DEFAULT 0,
+  b1_stock NUMERIC DEFAULT 0,
+  b2_stock NUMERIC DEFAULT 0,
+  b3_stock NUMERIC DEFAULT 0,
+  reorder NUMERIC DEFAULT 5,
+  unit VARCHAR(50) DEFAULT 'pcs',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sales (
+  id VARCHAR(100) PRIMARY KEY,
+  tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
+  bill_no VARCHAR(100),
+  branch VARCHAR(50),
+  subtotal NUMERIC,
+  tax NUMERIC,
+  discount NUMERIC DEFAULT 0,
+  total NUMERIC,
+  payment_method VARCHAR(50),
+  items JSONB,
+  customer_name VARCHAR(100),
+  customer_phone VARCHAR(50),
+  cashier VARCHAR(100),
+  ts TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stock_logs (
+  id VARCHAR(100) PRIMARY KEY,
+  tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
+  branch VARCHAR(50),
+  product_name VARCHAR(255),
+  change NUMERIC,
+  reason VARCHAR(255),
+  ts TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS transfers (
+  id VARCHAR(100) PRIMARY KEY,
+  tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
+  product_name VARCHAR(255),
+  from_branch VARCHAR(50),
+  to_branch VARCHAR(50),
+  qty NUMERIC,
+  status VARCHAR(50) DEFAULT 'completed',
+  ts TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_products_tenant ON products(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_sales_tenant ON sales(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_stock_logs_tenant ON stock_logs(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_transfers_tenant ON transfers(tenant_id);
+`;
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(schemaSql);
 });
 
 app.use(express.static(__dirname));
