@@ -1,0 +1,1971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OmniPOS — Multi-Tenant Central POS & Inventory Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root {
+  --bg:          #f8f9fa;
+  --bg2:         #f1f3f5;
+  --panel:       #ffffff;
+  --panel2:      #fcfcfd;
+  --border:      #e2e8f0;
+  --border2:     #cbd5e1;
+  --theme-primary: #c8860a;
+  --theme-hover:   #b47506;
+  --theme-light:   #fef3c7;
+  --theme-accent:  #3d1f0a;
+  --text-main:     #0f172a;
+  --text-muted:    #64748b;
+  --text-dim:      #94a3b8;
+  --red:         #ef4444;
+  --green:       #10b981;
+  --blue:        #2563eb;
+  --purple:      #8b5cf6;
+  --shadow:      0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg:   0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  --radius:      12px;
+  --radius-sm:   6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 15px; scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── WORKSPACE / TENANT SELECTION & LOGIN SCREEN ─── */
+#portalScreen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: radial-gradient(circle at 10% 20%, #f8fafc 0%, #e2e8f0 90%);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  overflow-y: auto;
+}
+.portal-card {
+  background: var(--panel); border-radius: 20px; box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border); width: 100%; max-width: 520px; overflow: hidden;
+  animation: modalIn .3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.portal-header {
+  padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+.portal-logo-pill {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
+  background: #f1f5f9; border-radius: 30px; font-size: .8rem; font-weight: 700;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px;
+}
+.portal-title { font-family: 'Playfair Display', serif; font-size: 1.85rem; font-weight: 900; color: #0f172a; }
+.portal-subtitle { font-size: .88rem; color: var(--text-muted); margin-top: 6px; }
+
+.tenant-list { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto; }
+.tenant-item {
+  border: 1.5px solid var(--border); border-radius: var(--radius); padding: 14px 18px;
+  display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all .18s ease;
+  background: #fff;
+}
+.tenant-item:hover {
+  border-color: var(--theme-primary); transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+}
+.tenant-avatar {
+  width: 46px; height: 46px; border-radius: 10px; background: var(--bg2);
+  display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
+  overflow: hidden; flex-shrink: 0; border: 1px solid var(--border);
+}
+.tenant-avatar img { width: 100%; height: 100%; object-fit: contain; }
+.tenant-info { flex: 1; min-width: 0; }
+.tenant-name { font-weight: 700; font-size: 1rem; color: var(--text-main); }
+.tenant-desc { font-size: .78rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tenant-badge { font-size: .72rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; background: #e2e8f0; color: #475569; }
+
+.portal-footer {
+  padding: 18px 24px; background: #f8fafc; border-top: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+/* ─── PIN PAD SCREEN ─── */
+.pin-dots { display: flex; gap: 12px; justify-content: center; margin: 20px 0 20px; }
+.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border2); background: transparent; transition: .2s; }
+.pin-dot.filled { background: var(--theme-primary); border-color: var(--theme-primary); transform: scale(1.15); }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.pin-btn {
+  background: var(--bg2); border: 1.5px solid var(--border); border-radius: var(--radius);
+  padding: 14px; font-size: 1.3rem; font-weight: 700; color: var(--text-main);
+  cursor: pointer; transition: .15s;
+}
+.pin-btn:hover { background: var(--theme-light); border-color: var(--theme-primary); color: var(--theme-primary); }
+.pin-btn:active { transform: scale(.95); }
+.pin-btn.danger { color: var(--red); font-size: .9rem; }
+.role-badge-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px;
+  background: var(--theme-light); color: var(--theme-primary); border-radius: 20px;
+  font-weight: 700; font-size: .8rem; margin-bottom: 12px;
+}
+
+/* ─── HEADER ─── */
+#appScreen { display: none; min-height: 100vh; flex-direction: column; }
+#appScreen.show { display: flex; }
+#header {
+  background: var(--theme-accent); height: 60px; display: flex; align-items: center;
+  padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 200;
+  box-shadow: 0 2px 14px rgba(0,0,0,.15);
+}
+.hdr-brand-box { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+.hdr-logo-img { width: 36px; height: 36px; border-radius: 8px; object-fit: contain; background: #fff; padding: 2px; }
+.hdr-logo-txt { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 800; color: #fff; line-height: 1.1; }
+.hdr-logo-txt small { display: block; font-family: 'Plus Jakarta Sans', sans-serif; font-size: .68rem; font-weight: 500; color: var(--theme-primary); letter-spacing: .06em; text-transform: uppercase; }
+.hdr-tenant-switch {
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: 20px;
+  padding: 4px 12px; font-size: .78rem; font-weight: 600; color: #fff; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; transition: .15s;
+}
+.hdr-tenant-switch:hover { background: rgba(255,255,255,.2); }
+.hdr-branch-tag {
+  background: rgba(255,255,255,.15); border-radius: 20px; padding: 3px 12px;
+  font-size: .78rem; font-weight: 700; color: #fef08a; letter-spacing: .04em;
+}
+.hdr-spacer { flex: 1; }
+.hdr-db-badge {
+  font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+  background: rgba(16,185,129,.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,.3);
+}
+.hdr-clock { font-family: 'Space Mono', monospace; font-size: .82rem; color: rgba(255,255,255,.8); }
+.hdr-role { background: var(--theme-primary); color: #fff; font-size: .75rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; }
+.hdr-logout {
+  background: transparent; border: 1px solid rgba(255,255,255,.3); color: rgba(255,255,255,.85);
+  border-radius: var(--radius-sm); padding: 6px 14px; font-size: .8rem; font-weight: 600;
+  cursor: pointer; transition: .15s;
+}
+.hdr-logout:hover { background: rgba(255,255,255,.2); color: #fff; }
+
+/* ─── NAV TABS ─── */
+#navBar {
+  background: var(--panel); border-bottom: 1.5px solid var(--border); display: flex;
+  overflow-x: auto; position: sticky; top: 60px; z-index: 190; scrollbar-width: none;
+  padding: 0 20px;
+}
+#navBar::-webkit-scrollbar { display: none; }
+.nav-tab {
+  padding: 15px 18px; font-size: .88rem; font-weight: 600; color: var(--text-muted);
+  cursor: pointer; white-space: nowrap; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px;
+  transition: .15s; display: flex; align-items: center; gap: 8px;
+}
+.nav-tab:hover { color: var(--text-main); background: var(--bg2); }
+.nav-tab.active { color: var(--theme-primary); border-bottom-color: var(--theme-primary); font-weight: 700; }
+.nav-tab.adm-only { display: none; }
+
+/* ─── MAIN ─── */
+#mainContent { flex: 1; padding: 24px; max-width: 1500px; width: 100%; margin: 0 auto; }
+
+/* ─── STAT CARDS ─── */
+.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
+  padding: 18px 20px; border-left: 4px solid var(--theme-primary); box-shadow: var(--shadow);
+}
+.stat-card.b-red { border-left-color: var(--red); }
+.stat-card.b-blue { border-left-color: var(--blue); }
+.stat-card.b-green { border-left-color: var(--green); }
+.stat-num { font-family: 'Playfair Display', serif; font-size: 2.1rem; font-weight: 800; color: var(--text-main); line-height: 1.1; }
+.stat-label { font-size: .78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+.stat-sub { font-size: .78rem; color: var(--text-dim); margin-top: 2px; }
+
+/* ─── TABLE WRAPPER ─── */
+.tbl-wrap {
+  background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; box-shadow: var(--shadow); margin-bottom: 24px;
+}
+.tbl-head {
+  padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+  background: var(--panel2); border-bottom: 1.5px solid var(--border); flex-wrap: wrap;
+}
+.tbl-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: var(--text-main); flex: 1; }
+.tbl-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tbl-wrap table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.tbl-wrap th {
+  background: var(--bg2); padding: 11px 16px; text-align: left; font-size: .75rem;
+  font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;
+  border-bottom: 1.5px solid var(--border);
+}
+.tbl-wrap td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-main); vertical-align: middle; }
+.tbl-wrap tr:last-child td { border-bottom: none; }
+.tbl-wrap tr:hover td { background: #f8fafc; }
+
+/* ─── BADGES ─── */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .74rem; font-weight: 700; letter-spacing: .03em; }
+.badge-generic { background: #f1f5f9; color: #475569; }
+.badge-ok { background: #dcfce7; color: #15803d; }
+.badge-low { background: #fee2e2; color: #b91c1c; font-weight: 700; }
+.badge-paid { background: #dcfce7; color: #15803d; }
+.badge-b1 { background: #e0f2fe; color: #0369a1; }
+.badge-b2 { background: #fef3c7; color: #b45309; }
+.badge-b3 { background: #f3e8ff; color: #7e22ce; }
+.badge-admin { background: var(--theme-light); color: var(--theme-primary); }
+
+/* ─── BUTTONS ─── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--radius-sm);
+  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: .88rem; cursor: pointer;
+  border: 1.5px solid transparent; transition: .15s; text-decoration: none; white-space: nowrap;
+}
+.btn:active { transform: scale(.97); }
+.btn-primary { background: var(--theme-primary); color: #fff; border-color: var(--theme-primary); }
+.btn-primary:hover { background: var(--theme-hover); border-color: var(--theme-hover); }
+.btn-dark { background: var(--theme-accent); color: #fff; border-color: var(--theme-accent); }
+.btn-dark:hover { opacity: .9; }
+.btn-outline { background: transparent; color: var(--text-main); border-color: var(--border2); }
+.btn-outline:hover { background: var(--bg2); border-color: var(--theme-primary); color: var(--theme-primary); }
+.btn-danger { background: #fee2e2; color: var(--red); border-color: #fca5a5; }
+.btn-danger:hover { background: var(--red); color: #fff; }
+.btn-green { background: #dcfce7; color: var(--green); border-color: #86efac; }
+.btn-green:hover { background: var(--green); color: #fff; }
+.btn-sm { padding: 6px 12px; font-size: .8rem; }
+
+/* ─── INPUTS ─── */
+input, select, textarea {
+  font-family: 'Plus Jakarta Sans', sans-serif; font-size: .88rem; background: var(--bg2);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px;
+  color: var(--text-main); transition: .15s; width: 100%; outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--theme-primary); background: #fff; box-shadow: 0 0 0 3px rgba(200,134,10,.12);
+}
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.form-row.one { grid-template-columns: 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label { font-size: .78rem; font-weight: 700; color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
+
+/* ─── BRANDING CUSTOMIZER & LOGO UPLOADER ─── */
+.branding-preview-card {
+  border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 20px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg2); cursor: pointer; text-align: center; position: relative;
+  transition: .2s; min-height: 140px;
+}
+.branding-preview-card:hover { border-color: var(--theme-primary); background: #fff; }
+.branding-logo-preview { max-width: 140px; max-height: 90px; object-fit: contain; margin-bottom: 10px; }
+
+/* ─── BILLING ─── */
+#billingWrap { display: grid; grid-template-columns: 1fr 400px; gap: 20px; align-items: start; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+.menu-card {
+  background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
+  padding: 16px; cursor: pointer; transition: .2s; box-shadow: var(--shadow); position: relative;
+}
+.menu-card:hover { border-color: var(--theme-primary); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.menu-card.oos { opacity: .45; pointer-events: none; filter: grayscale(.8); }
+.mc-name { font-size: .92rem; font-weight: 700; color: var(--text-main); margin: 6px 0; line-height: 1.3; }
+.mc-price { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 800; color: var(--theme-primary); }
+.mc-stock { font-size: .74rem; color: var(--text-muted); margin-top: 4px; }
+
+/* ─── CART ─── */
+.cart-panel {
+  background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--shadow-lg); position: sticky; top: 80px; max-height: calc(100vh - 100px);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.cart-hdr {
+  padding: 16px 20px; border-bottom: 1.5px solid var(--border); background: var(--theme-accent);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.cart-hdr-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: #fff; }
+.cart-items { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.cart-empty { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: .9rem; }
+.cart-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm);
+  background: var(--bg2); border: 1px solid var(--border);
+}
+.qty-ctrl { display: flex; align-items: center; gap: 6px; }
+.qty-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border2);
+  background: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.qty-btn:hover { background: var(--theme-primary); color: #fff; border-color: var(--theme-primary); }
+.cart-footer { border-top: 1.5px solid var(--border); padding: 16px; background: var(--panel2); }
+.cart-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: .9rem; }
+.cart-row.total-row {
+  font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 800; color: var(--text-main);
+  padding-top: 10px; margin-top: 6px; border-top: 2px dashed var(--border);
+}
+
+/* ─── MODAL & TOASTS ─── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.65); backdrop-filter: blur(4px);
+  z-index: 500; display: none; align-items: center; justify-content: center; padding: 16px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: var(--panel); border-radius: 16px; box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; animation: modalIn .2s ease;
+}
+.modal-lg { max-width: 760px; }
+@keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+.modal-hdr { padding: 20px 24px; border-bottom: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 800; }
+.modal-body { padding: 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1.5px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+
+#toastZone { position: fixed; bottom: 24px; right: 24px; z-index: 99999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.toast {
+  background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius);
+  padding: 14px 18px; box-shadow: var(--shadow-lg); font-size: .88rem; font-weight: 600;
+  display: flex; align-items: center; gap: 10px; pointer-events: all; animation: modalIn .25s ease;
+  border-left: 4px solid var(--theme-primary);
+}
+.toast.err { border-left-color: var(--red); color: var(--red); }
+.toast.ok { border-left-color: var(--green); color: #065f46; }
+
+/* ─── RESPONSIVE ─── */
+@media(max-width: 960px) {
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  #billingWrap { grid-template-columns: 1fr; }
+}
+@media(max-width: 600px) {
+  #mainContent { padding: 14px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-row { grid-template-columns: 1fr; }
+  #header { padding: 0 14px; }
+  .hdr-clock, .hdr-db-badge { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ MULTI-TENANT CLIENT SELECTOR & LOGIN ═══════════════════════════════ -->
+<div id="portalScreen">
+  <div class="portal-card" id="portalCard">
+    
+    <!-- Step 1: Select Business Tenant Workspace -->
+    <div id="tenantSelectView">
+      <div class="portal-header">
+        <div class="portal-logo-pill">⚡ Central POS Platform</div>
+        <h1 class="portal-title">Select Workspace</h1>
+        <p class="portal-subtitle">Each customer gets complete data isolation & custom branding</p>
+      </div>
+
+      <div class="tenant-list" id="tenantList">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <div class="portal-footer">
+        <button class="btn btn-outline btn-sm" onclick="openCreateTenantModal()">＋ New Customer Workspace</button>
+        <button class="btn btn-primary btn-sm" onclick="openDbConfigModal()">⚙ Database Settings</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Role Selection for Chosen Tenant -->
+    <div id="roleSelectView" style="display:none">
+      <div class="portal-header">
+        <div id="activeTenantLogoBox" style="margin-bottom:10px"></div>
+        <h1 class="portal-title" id="activeTenantName">Customer Shop</h1>
+        <p class="portal-subtitle" id="activeTenantTagline">Point of Sale &amp; Inventory System</p>
+      </div>
+      <div style="padding: 24px;">
+        <p style="font-size:.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:14px;letter-spacing:.05em">Select User Role</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('admin')">
+            <span style="font-size:1.4rem">👑</span>
+            <div style="text-align:left"><div style="font-weight:700">Administrator</div><div style="font-size:.78rem;color:var(--text-muted)">Full business control, inventory, &amp; branding</div></div>
+          </button>
+          <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b1')">
+            <span style="font-size:1.4rem">🏪</span>
+            <div style="text-align:left"><div style="font-weight:700" id="b1RoleLbl">Branch 1</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing</div></div>
+          </button>
+          <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b2')">
+            <span style="font-size:1.4rem">🏪</span>
+            <div style="text-align:left"><div style="font-weight:700" id="b2RoleLbl">Branch 2</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing</div></div>
+          </button>
+          <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b3')">
+            <span style="font-size:1.4rem">🏪</span>
+            <div style="text-align:left"><div style="font-weight:700" id="b3RoleLbl">Branch 3</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing</div></div>
+          </button>
+        </div>
+      </div>
+      <div class="portal-footer">
+        <button class="btn btn-outline btn-sm" onclick="backToTenantSelect()">← Switch Customer</button>
+      </div>
+    </div>
+
+    <!-- Step 3: PIN Pad Entry -->
+    <div id="pinEntryView" style="display:none;padding:28px 24px;text-align:center">
+      <div class="role-badge-pill" id="pinRolePill">Admin PIN</div>
+      <h2 style="font-size:1.3rem;font-weight:800;color:var(--text-main);margin-bottom:6px">Enter 4-Digit Security PIN</h2>
+      <p style="font-size:.82rem;color:var(--text-muted)">Default demo PIN: <span id="hintPin" style="font-weight:700;color:var(--theme-primary)">1234</span></p>
+
+      <div class="pin-dots">
+        <div class="pin-dot" id="d0"></div>
+        <div class="pin-dot" id="d1"></div>
+        <div class="pin-dot" id="d2"></div>
+        <div class="pin-dot" id="d3"></div>
+      </div>
+
+      <div class="pin-pad" id="pinPad">
+        <button class="pin-btn" onclick="pinPress('1')">1</button>
+        <button class="pin-btn" onclick="pinPress('2')">2</button>
+        <button class="pin-btn" onclick="pinPress('3')">3</button>
+        <button class="pin-btn" onclick="pinPress('4')">4</button>
+        <button class="pin-btn" onclick="pinPress('5')">5</button>
+        <button class="pin-btn" onclick="pinPress('6')">6</button>
+        <button class="pin-btn" onclick="pinPress('7')">7</button>
+        <button class="pin-btn" onclick="pinPress('8')">8</button>
+        <button class="pin-btn" onclick="pinPress('9')">9</button>
+        <button class="pin-btn danger" onclick="pinClear()">✕</button>
+        <button class="pin-btn" onclick="pinPress('0')">0</button>
+        <button class="pin-btn danger" onclick="pinBack()">⌫</button>
+      </div>
+
+      <button class="btn btn-outline btn-sm" style="width:100%" onclick="backToRoleSelect()">← Cancel</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ APPLICATION SCREEN ═══════════════════════════════ -->
+<div id="appScreen">
+  <header id="header">
+    <div class="hdr-brand-box" onclick="switchTab('admin')">
+      <div id="hdrLogoContainer"></div>
+      <div class="hdr-logo-txt">
+        <span id="hdrTenantName">NB Cakes &amp; Desserts</span>
+        <small id="hdrTenantType">Bakery &amp; Cafe</small>
+      </div>
+    </div>
+
+    <button class="hdr-tenant-switch" onclick="promptSwitchTenant()">
+      🏢 Switch Client
+    </button>
+
+    <div class="hdr-branch-tag" id="hdrBranch">—</div>
+    <div class="hdr-spacer"></div>
+
+    <div class="hdr-db-badge" id="hdrDbBadge">● Cloud DB</div>
+    <div class="hdr-clock" id="hdrClock">00:00:00</div>
+    <div class="hdr-role" id="hdrRole">Admin</div>
+    <button class="hdr-logout" onclick="logout()">Logout</button>
+  </header>
+
+  <nav id="navBar">
+    <div class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</div>
+    <div class="nav-tab" data-tab="billing" onclick="switchTab('billing')">🧾 Live POS Billing</div>
+    <div class="nav-tab adm-only" data-tab="inventory" onclick="switchTab('inventory')">🗂 Products &amp; Prices</div>
+    <div class="nav-tab adm-only" data-tab="stock" onclick="switchTab('stock')">📦 Stock Entry</div>
+    <div class="nav-tab adm-only" data-tab="transfer" onclick="switchTab('transfer')">🔄 Multi-Branch Transfer</div>
+    <div class="nav-tab adm-only" data-tab="history" onclick="switchTab('history')">📋 Invoices</div>
+    <div class="nav-tab adm-only" data-tab="reports" onclick="switchTab('reports')">📈 Analytics &amp; Reports</div>
+    <div class="nav-tab adm-only" data-tab="admin" onclick="switchTab('admin')">🎨 Brand &amp; Shop Settings</div>
+  </nav>
+
+  <div id="mainContent">
+    
+    <!-- ─── DASHBOARD ─── -->
+    <div id="tab-dashboard" class="tab-content">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div>
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800;color:var(--text-main)">Dashboard Overview</h2>
+          <p style="font-size:.85rem;color:var(--text-muted)" id="dashSubTitle">Isolated client performance</p>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="switchTab('billing')">＋ New Sale</button>
+      </div>
+
+      <div class="stat-grid">
+        <div class="stat-card">
+          <div class="stat-num" id="ds-rev">0.00</div>
+          <div class="stat-label">Total Revenue</div>
+          <div class="stat-sub">Lifetime workspace sales</div>
+        </div>
+        <div class="stat-card b-red">
+          <div class="stat-num" id="ds-orders">0</div>
+          <div class="stat-label">Invoices Completed</div>
+          <div class="stat-sub">All branches combined</div>
+        </div>
+        <div class="stat-card b-blue">
+          <div class="stat-num" id="ds-avg">0.00</div>
+          <div class="stat-label">Avg Order Value</div>
+          <div class="stat-sub">Per completed transaction</div>
+        </div>
+        <div class="stat-card b-green">
+          <div class="stat-num" style="font-size:1.3rem" id="ds-top">—</div>
+          <div class="stat-label">Top Selling Item</div>
+          <div class="stat-sub" id="ds-topSub">0 units sold</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div class="tbl-wrap">
+          <div class="tbl-head"><div class="tbl-title">Sales by Category</div></div>
+          <table>
+            <thead><tr><th>Category</th><th>Units Sold</th><th>Revenue</th></tr></thead>
+            <tbody id="dashCatTbl"><tr class="no-data-row"><td colspan="3" style="text-align:center;padding:24px;color:var(--text-muted)">No sales yet</td></tr></tbody>
+          </table>
+        </div>
+        <div class="tbl-wrap">
+          <div class="tbl-head"><div class="tbl-title">Low Stock Alerts</div></div>
+          <table>
+            <thead><tr><th>Product</th><th>Branch</th><th>Remaining</th><th>Alert</th></tr></thead>
+            <tbody id="dashLowTbl"><tr class="no-data-row"><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted)">All inventory healthy ✓</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── BILLING (POS) ─── -->
+    <div id="tab-billing" class="tab-content" style="display:none">
+      <div id="billingWrap">
+        <div>
+          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+            <input type="text" id="menuSearch" placeholder="🔍 Search menu item or barcode..." oninput="renderMenuGrid()" style="flex:1;min-width:200px"/>
+            <select id="billingBranchSelect" onchange="changeBillingBranch(this.value)" style="width:200px">
+              <option value="b1">Branch 1</option>
+              <option value="b2">Branch 2</option>
+              <option value="b3">Branch 3</option>
+            </select>
+          </div>
+
+          <div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px" id="catFilters">
+            <!-- category pills -->
+          </div>
+
+          <div class="menu-grid" id="menuGrid">
+            <!-- menu cards -->
+          </div>
+        </div>
+
+        <!-- POS Cart Sidebar -->
+        <div class="cart-panel">
+          <div class="cart-hdr">
+            <div class="cart-hdr-title">🛒 Order Cart</div>
+            <button class="btn btn-sm btn-outline" style="color:#fff;border-color:rgba(255,255,255,.3);padding:4px 8px" onclick="clearCart()">Clear</button>
+          </div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
+            <input type="text" id="custName" placeholder="Customer name (optional)"/>
+            <input type="text" id="custPhone" placeholder="Phone (optional)"/>
+          </div>
+          <div class="cart-items" id="cartItems">
+            <div class="cart-empty">Click items to add to order</div>
+          </div>
+          <div class="cart-footer">
+            <div class="cart-row"><span>Subtotal</span><span id="cartSub">0.00</span></div>
+            <div class="cart-row"><span id="cartTaxLbl">Tax / GST (5%)</span><span id="cartTax">0.00</span></div>
+            <div class="cart-row total-row"><span>TOTAL</span><span id="cartTotal">0.00</span></div>
+            <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px;padding:12px;font-size:1rem" onclick="completeSale()">
+              🧾 Generate Invoice &amp; Print
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── INVENTORY & PRODUCTS ─── -->
+    <div id="tab-inventory" class="tab-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:800">Products &amp; Pricing</h2>
+          <p style="font-size:.85rem;color:var(--text-muted)">Manage catalog, cost, selling price and minimum alert thresholds</p>
+        </div>
+        <button class="btn btn-primary" onclick="openProductModal()">＋ Add New Product</button>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Item Name</th>
+              <th>Category</th>
+              <th>Price</th>
+              <th>Cost</th>
+              <th id="inv-b1h">Stock Br.1</th>
+              <th id="inv-b2h">Stock Br.2</th>
+              <th id="inv-b3h">Stock Br.3</th>
+              <th>Min Alert</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="inventoryBody">
+            <!-- dynamic -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── STOCK ENTRY ─── -->
+    <div id="tab-stock" class="tab-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:800">Batch Stock Count Entry</h2>
+          <p style="font-size:.85rem;color:var(--text-muted)">Quickly overwrite inventory levels for daily audits</p>
+        </div>
+        <button class="btn btn-primary" onclick="saveStockEntry()">💾 Save All Stock Adjustments</button>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Category</th>
+              <th id="se-b1h">Branch 1 — Set To</th>
+              <th id="se-b2h">Branch 2 — Set To</th>
+              <th id="se-b3h">Branch 3 — Set To</th>
+              <th>Current B1</th>
+              <th>Current B2</th>
+              <th>Current B3</th>
+            </tr>
+          </thead>
+          <tbody id="stockEntryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── STOCK TRANSFER ─── -->
+    <div id="tab-transfer" class="tab-content" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:20px;align-items:start">
+        <div class="tbl-wrap">
+          <div class="tbl-head"><div class="tbl-title">Transfer Between Branches</div></div>
+          <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+            <div class="form-group">
+              <label>Select Product</label>
+              <select id="tfItem" onchange="updateTransferPreview()"><option value="">Choose item...</option></select>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>From Branch</label>
+                <select id="tfFrom" onchange="updateTransferPreview()">
+                  <option value="b1">Branch 1</option>
+                  <option value="b2">Branch 2</option>
+                  <option value="b3">Branch 3</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>To Branch</label>
+                <select id="tfTo" onchange="updateTransferPreview()">
+                  <option value="b2">Branch 2</option>
+                  <option value="b1">Branch 1</option>
+                  <option value="b3">Branch 3</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Transfer Quantity</label>
+              <input type="number" id="tfQty" min="1" placeholder="Enter quantity" oninput="updateTransferPreview()"/>
+            </div>
+            <div class="form-group">
+              <label>Notes / Reason</label>
+              <input type="text" id="tfNote" placeholder="e.g. Daily restocking"/>
+            </div>
+            <button class="btn btn-primary" onclick="confirmTransfer()">✓ Execute Stock Transfer</button>
+          </div>
+        </div>
+
+        <div class="tbl-wrap">
+          <div class="tbl-head"><div class="tbl-title">Transfer Activity Log</div></div>
+          <table>
+            <thead><tr><th>Time</th><th>Item</th><th>Qty</th><th>From</th><th>To</th></tr></thead>
+            <tbody id="transferLogBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">No transfers recorded</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SALES INVOICES HISTORY ─── -->
+    <div id="tab-history" class="tab-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:800">Sales Invoices</h2>
+          <p style="font-size:.85rem;color:var(--text-muted)">Past orders and invoices generated for this client</p>
+        </div>
+        <button class="btn btn-green btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+      </div>
+
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Invoice #</th>
+              <th>Date &amp; Time</th>
+              <th>Branch</th>
+              <th>Customer</th>
+              <th>Items</th>
+              <th>Total</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── REPORTS ─── -->
+    <div id="tab-reports" class="tab-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+        <div>
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:800">Analytics &amp; Sales Reports</h2>
+          <p style="font-size:.85rem;color:var(--text-muted)">Financial summary and item movement metrics</p>
+        </div>
+        <button class="btn btn-green btn-sm" onclick="exportExcel()">📊 Export Excel</button>
+      </div>
+
+      <div class="tbl-wrap">
+        <div class="tbl-head"><div class="tbl-title">Branch Revenue Distribution</div></div>
+        <table>
+          <thead><tr><th>Branch</th><th>Total Invoices</th><th>Subtotal</th><th>Tax Collected</th><th>Total Gross Revenue</th></tr></thead>
+          <tbody id="repSummaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── BRANDING & SHOP CUSTOMIZER (CLIENT BRANDING & LOGO UPLOAD) ─── -->
+    <div id="tab-admin" class="tab-content" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div>
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800">Client Branding &amp; Store Setup</h2>
+          <p style="font-size:.85rem;color:var(--text-muted)">Customize logo, brand colors, currency, branch names, and security PINs</p>
+        </div>
+        <button class="btn btn-primary" onclick="saveTenantBranding()">💾 Save Brand Settings</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <!-- Logo & Identity Card -->
+        <div class="tbl-wrap" style="padding:24px">
+          <h3 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;margin-bottom:16px">🖼 Logo &amp; Identity</h3>
+          
+          <div class="form-group" style="margin-bottom:16px">
+            <label>Shop Logo Upload</label>
+            <div class="branding-preview-card" onclick="document.getElementById('logoFileInput').click()">
+              <div id="logoPreviewContainer">
+                <div style="font-size:2rem;margin-bottom:8px">📸</div>
+                <div style="font-weight:600;font-size:.9rem;color:var(--text-main)">Click to upload custom logo</div>
+                <div style="font-size:.78rem;color:var(--text-muted)">PNG, JPG, SVG or WebP format</div>
+              </div>
+              <input type="file" id="logoFileInput" accept="image/*" style="display:none" onchange="handleLogoUpload(event)"/>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Business Name *</label>
+            <input type="text" id="adm-tenantName" placeholder="e.g. NB Cakes & Desserts"/>
+          </div>
+
+          <div class="form-group" style="margin-bottom:14px">
+            <label>Business Type</label>
+            <input type="text" id="adm-tenantType" placeholder="e.g. Bakery, Cafe, Pizzeria, Food Truck"/>
+          </div>
+
+          <div class="form-group">
+            <label>Tagline / Invoice Slogan</label>
+            <input type="text" id="adm-tenantTagline" placeholder="e.g. Freshly Baked Goodness"/>
+          </div>
+        </div>
+
+        <!-- Color Scheme & Theme -->
+        <div class="tbl-wrap" style="padding:24px">
+          <h3 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;margin-bottom:16px">🎨 Visual Theme &amp; Currencies</h3>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Brand Primary Color</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="color" id="adm-themeColor" style="width:50px;height:42px;padding:2px;cursor:pointer" onchange="previewColors()"/>
+                <input type="text" id="adm-themeColorHex" placeholder="#c8860a" oninput="document.getElementById('adm-themeColor').value=this.value; previewColors()"/>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Header Dark Accent</label>
+              <div style="display:flex;gap:8px;align-items:center">
+                <input type="color" id="adm-accentColor" style="width:50px;height:42px;padding:2px;cursor:pointer" onchange="previewColors()"/>
+                <input type="text" id="adm-accentColorHex" placeholder="#3d1f0a" oninput="document.getElementById('adm-accentColor').value=this.value; previewColors()"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label>Currency Symbol</label>
+              <input type="text" id="adm-currency" placeholder="₹, $, €, £, AED"/>
+            </div>
+            <div class="form-group">
+              <label>Tax / GST Rate (%)</label>
+              <input type="number" id="adm-gstRate" min="0" max="30" placeholder="5"/>
+            </div>
+          </div>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0"/>
+
+          <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Branch Name Customization</h4>
+          <div class="form-row">
+            <div class="form-group"><label>Branch 1</label><input type="text" id="adm-b1name" placeholder="Branch 1"/></div>
+            <div class="form-group"><label>Branch 2</label><input type="text" id="adm-b2name" placeholder="Branch 2"/></div>
+          </div>
+          <div class="form-group"><label>Branch 3</label><input type="text" id="adm-b3name" placeholder="Branch 3"/></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ MODALS ═══════════════════════════════ -->
+
+<!-- Modal: New Customer Workspace -->
+<div class="modal-overlay" id="createTenantModal" onclick="closeModalOut(event,'createTenantModal')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">Create New Customer Workspace</div>
+      <button class="modal-close" onclick="closeModal('createTenantModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Business / Customer Shop Name *</label>
+        <input type="text" id="newTenantName" placeholder="e.g. Sweet Delights Bakery"/>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Business Type</label>
+          <input type="text" id="newTenantType" placeholder="e.g. Cafe, Bakery, Restaurant"/>
+        </div>
+        <div class="form-group">
+          <label>Currency</label>
+          <input type="text" id="newTenantCurrency" value="₹" placeholder="₹ or $"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Primary Theme Color</label>
+          <input type="color" id="newTenantColor" value="#0284c7"/>
+        </div>
+        <div class="form-group">
+          <label>Admin Security PIN</label>
+          <input type="password" id="newTenantPin" maxlength="4" value="1234"/>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('createTenantModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitCreateTenant()">Create Isolated Shop</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Database / Neon Settings -->
+<div class="modal-overlay" id="dbConfigModal" onclick="closeModalOut(event,'dbConfigModal')">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-title">🗄️ Database &amp; Neon Configuration</div>
+      <button class="modal-close" onclick="closeModal('dbConfigModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:16px">
+        <div style="font-weight:700;color:#166534;margin-bottom:4px" id="dbStatusTitle">Database Connected</div>
+        <div style="font-size:.85rem;color:#15803d" id="dbStatusDesc">The platform guarantees strict isolation per client ID in the backend data layer.</div>
+      </div>
+
+      <h4 style="font-size:.9rem;font-weight:800;color:var(--text-main);margin-bottom:8px">Connecting your own Neon / PostgreSQL database:</h4>
+      <p style="font-size:.85rem;color:var(--text-muted);line-height:1.5;margin-bottom:14px">
+        To plug in your direct Neon PostgreSQL instance:
+      </p>
+      <ol style="font-size:.85rem;color:var(--text-main);padding-left:20px;line-height:1.6;margin-bottom:16px">
+        <li>Create a free database at <a href="https://neon.tech" target="_blank" style="color:var(--theme-primary);font-weight:700">neon.tech</a></li>
+        <li>Copy your connection string: <code>postgres://user:pass@ep-xyz.region.aws.neon.tech/neondb?sslmode=require</code></li>
+        <li>Set the <code>DATABASE_URL</code> environment variable in your deployment settings.</li>
+      </ol>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('dbConfigModal')">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Add / Edit Product -->
+<div class="modal-overlay" id="productModal" onclick="closeModalOut(event,'productModal')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="productModalTitle">Add Product</div>
+      <button class="modal-close" onclick="closeModal('productModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Product Name *</label>
+          <input type="text" id="pm-name" placeholder="e.g. Signature Brownie"/>
+        </div>
+        <div class="form-group">
+          <label>Category *</label>
+          <input type="text" id="pm-cat" placeholder="e.g. Brownies, Cakes, Beverages"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Selling Price *</label>
+          <input type="number" id="pm-price" placeholder="0.00"/>
+        </div>
+        <div class="form-group">
+          <label>Unit Cost</label>
+          <input type="number" id="pm-cost" placeholder="0.00"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Low Stock Alert Threshold</label>
+          <input type="number" id="pm-reorder" value="5"/>
+        </div>
+        <div class="form-group">
+          <label>Unit of Measure</label>
+          <input type="text" id="pm-unit" value="pcs" placeholder="pcs, kg, box"/>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label id="pm-b1lbl">Branch 1 Initial Stock</label><input type="number" id="pm-b1" value="10"/></div>
+        <div class="form-group"><label id="pm-b2lbl">Branch 2 Initial Stock</label><input type="number" id="pm-b2" value="10"/></div>
+      </div>
+      <div class="form-group"><label id="pm-b3lbl">Branch 3 Initial Stock</label><input type="number" id="pm-b3" value="5"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('productModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveProduct()">Save Product</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Printable Invoice -->
+<div class="modal-overlay" id="invoiceModal" onclick="closeModalOut(event,'invoiceModal')">
+  <div class="modal modal-lg">
+    <div class="modal-hdr">
+      <div class="modal-title">Receipt &amp; Tax Invoice</div>
+      <button class="modal-close" onclick="closeModal('invoiceModal')">✕</button>
+    </div>
+    <div class="modal-body" id="invoiceModalBody"></div>
+    <div class="modal-footer" id="invoiceModalFoot">
+      <button class="btn btn-outline" onclick="closeModal('invoiceModal')">Close</button>
+      <button class="btn btn-primary" onclick="window.print()">🖨 Print Invoice</button>
+    </div>
+  </div>
+</div>
+
+<div id="toastZone"></div>
+
+<script>
+// ═══════════════ APPLICATION STATE ═══════════════
+let tenants = [];
+let currentTenant = null;
+let currentRole = null;
+let products = [];
+let sales = [];
+let stockLogs = [];
+let transfers = [];
+let cart = [];
+let activeTab = 'dashboard';
+let activeCat = 'all';
+let pinInput = '';
+let pinRole = '';
+let editProductId = null;
+let currentUploadedLogoBase64 = '';
+
+// Clock
+setInterval(() => {
+  const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const el = document.getElementById('hdrClock');
+  if (el) el.textContent = t;
+}, 1000);
+
+// Helper formatting
+function fmtMoney(n) {
+  const sym = currentTenant?.currency || '₹';
+  return sym + ' ' + Number(n || 0).toFixed(2);
+}
+
+function toast(msg, type = 'ok') {
+  const z = document.getElementById('toastZone');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  z.appendChild(t);
+  setTimeout(() => t.remove(), 3400);
+}
+
+function openModal(id) { document.getElementById(id).classList.add('show'); }
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+function closeModalOut(e, id) { if (e.target.id === id) closeModal(id); }
+
+// ═══════════════ TENANT WORKSPACE MANAGEMENT ═══════════════
+async function loadTenants() {
+  try {
+    const res = await fetch('/api/tenants');
+    const data = await res.json();
+    if (data.success) {
+      tenants = data.tenants;
+      renderTenantList();
+    }
+  } catch (err) {
+    console.error('Failed to fetch tenants:', err);
+  }
+}
+
+function renderTenantList() {
+  const list = document.getElementById('tenantList');
+  if (!list) return;
+
+  list.innerHTML = tenants.map(t => `
+    <div class="tenant-item" onclick="chooseTenant('${t.id}')">
+      <div class="tenant-avatar" style="border-color:${t.themeColor || '#cbd5e1'}">
+        ${t.logoUrl ? `<img src="${t.logoUrl}" alt="${t.name}"/>` : `<span>🏬</span>`}
+      </div>
+      <div class="tenant-info">
+        <div class="tenant-name">${t.name}</div>
+        <div class="tenant-desc">${t.businessType || 'Retail POS'} · ${t.tagline || ''}</div>
+      </div>
+      <span class="tenant-badge" style="background:${t.themeColor || '#e2e8f0'}22;color:${t.themeColor || '#0f172a'};font-weight:700">
+        ${t.currency || '$'} Active
+      </span>
+    </div>
+  `).join('');
+}
+
+function chooseTenant(tenantId) {
+  const t = tenants.find(x => x.id === tenantId);
+  if (!t) return;
+  currentTenant = t;
+  applyTenantTheme(t);
+
+  document.getElementById('activeTenantName').textContent = t.name;
+  document.getElementById('activeTenantTagline').textContent = t.tagline || t.businessType || 'POS & Inventory';
+  
+  const logoBox = document.getElementById('activeTenantLogoBox');
+  if (t.logoUrl) {
+    logoBox.innerHTML = `<img src="${t.logoUrl}" style="max-height:55px;object-fit:contain"/>`;
+  } else {
+    logoBox.innerHTML = `<div style="font-size:2.2rem">🏪</div>`;
+  }
+
+  document.getElementById('b1RoleLbl').textContent = t.b1name || 'Branch 1';
+  document.getElementById('b2RoleLbl').textContent = t.b2name || 'Branch 2';
+  document.getElementById('b3RoleLbl').textContent = t.b3name || 'Branch 3';
+
+  document.getElementById('tenantSelectView').style.display = 'none';
+  document.getElementById('roleSelectView').style.display = 'block';
+}
+
+function backToTenantSelect() {
+  document.getElementById('tenantSelectView').style.display = 'block';
+  document.getElementById('roleSelectView').style.display = 'none';
+  document.getElementById('pinEntryView').style.display = 'none';
+}
+
+function openCreateTenantModal() {
+  openModal('createTenantModal');
+}
+
+async function submitCreateTenant() {
+  const name = document.getElementById('newTenantName').value.trim();
+  const businessType = document.getElementById('newTenantType').value.trim();
+  const currency = document.getElementById('newTenantCurrency').value.trim() || '₹';
+  const themeColor = document.getElementById('newTenantColor').value;
+  const adminPin = document.getElementById('newTenantPin').value.trim() || '1234';
+
+  if (!name) { toast('Please enter a shop name', 'err'); return; }
+
+  try {
+    const res = await fetch('/api/tenants', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, businessType, currency, themeColor, adminPin })
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`Customer workspace "${name}" created!`, 'ok');
+      closeModal('createTenantModal');
+      await loadTenants();
+      chooseTenant(data.tenant.id);
+    }
+  } catch (err) {
+    toast('Error creating customer shop', 'err');
+  }
+}
+
+// ═══════════════ ROLE & PIN VERIFICATION ═══════════════
+function selectRole(role) {
+  pinRole = role;
+  pinInput = '';
+  updateDots();
+  const roleNames = {
+    admin: 'Administrator',
+    b1: currentTenant.b1name || 'Branch 1',
+    b2: currentTenant.b2name || 'Branch 2',
+    b3: currentTenant.b3name || 'Branch 3'
+  };
+  document.getElementById('pinRolePill').textContent = roleNames[role] || role;
+  
+  const expectedPin = (currentTenant.pins && currentTenant.pins[role]) || '1234';
+  document.getElementById('hintPin').textContent = expectedPin;
+
+  document.getElementById('roleSelectView').style.display = 'none';
+  document.getElementById('pinEntryView').style.display = 'block';
+}
+
+function backToRoleSelect() {
+  document.getElementById('roleSelectView').style.display = 'block';
+  document.getElementById('pinEntryView').style.display = 'none';
+}
+
+function pinPress(digit) {
+  if (pinInput.length >= 4) return;
+  pinInput += digit;
+  updateDots();
+  if (pinInput.length === 4) verifyPin();
+}
+
+function pinBack() { pinInput = pinInput.slice(0, -1); updateDots(); }
+function pinClear() { pinInput = ''; updateDots(); }
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    const el = document.getElementById('d' + i);
+    if (el) el.classList.toggle('filled', i < pinInput.length);
+  }
+}
+
+async function verifyPin() {
+  const correct = (currentTenant.pins && currentTenant.pins[pinRole]) || (pinRole === 'admin' ? '1234' : '1111');
+  if (pinInput === correct) {
+    loginSuccess(pinRole);
+  } else {
+    toast('Invalid PIN. Please try again.', 'err');
+    pinInput = '';
+    updateDots();
+  }
+}
+
+async function loginSuccess(role) {
+  currentRole = role;
+  document.getElementById('portalScreen').style.display = 'none';
+  document.getElementById('appScreen').classList.add('show');
+
+  // Set up header branding
+  document.getElementById('hdrTenantName').textContent = currentTenant.name;
+  document.getElementById('hdrTenantType').textContent = currentTenant.businessType || 'POS & Inventory';
+  
+  const logoContainer = document.getElementById('hdrLogoContainer');
+  if (currentTenant.logoUrl) {
+    logoContainer.innerHTML = `<img src="${currentTenant.logoUrl}" class="hdr-logo-img" alt="logo"/>`;
+  } else {
+    logoContainer.innerHTML = `<span style="font-size:1.4rem">🏬</span>`;
+  }
+
+  const roleNames = { admin: 'Admin', b1: currentTenant.b1name || 'Branch 1', b2: currentTenant.b2name || 'Branch 2', b3: currentTenant.b3name || 'Branch 3' };
+  document.getElementById('hdrRole').textContent = roleNames[role] || role;
+  document.getElementById('hdrBranch').textContent = role === 'admin' ? 'All Branches' : (currentTenant[role + 'name'] || role);
+
+  // Admin access control
+  document.querySelectorAll('.adm-only').forEach(el => {
+    el.style.display = (role === 'admin') ? 'flex' : 'none';
+  });
+
+  await loadTenantData();
+  switchTab(role === 'admin' ? 'dashboard' : 'billing');
+}
+
+function logout() {
+  currentRole = null;
+  cart = [];
+  document.getElementById('appScreen').classList.remove('show');
+  document.getElementById('portalScreen').style.display = 'flex';
+  backToTenantSelect();
+}
+
+function promptSwitchTenant() {
+  logout();
+}
+
+// ═══════════════ THEME APPLIER ═══════════════
+function applyTenantTheme(t) {
+  const primary = t.themeColor || '#c8860a';
+  const accent = t.accentColor || '#3d1f0a';
+  document.documentElement.style.setProperty('--theme-primary', primary);
+  document.documentElement.style.setProperty('--theme-accent', accent);
+  document.documentElement.style.setProperty('--theme-light', primary + '22');
+}
+
+// ═══════════════ LOAD TENANT ISOLATED DATA ═══════════════
+async function loadTenantData() {
+  if (!currentTenant) return;
+  try {
+    const res = await fetch(`/api/tenant/${currentTenant.id}/data`);
+    const data = await res.json();
+    if (data.success) {
+      products = data.products || [];
+      sales = data.sales || [];
+      stockLogs = data.stockLogs || [];
+      transfers = data.transfers || [];
+      refreshActiveView();
+    }
+  } catch (err) {
+    console.error('Error fetching tenant data:', err);
+  }
+}
+
+// ═══════════════ TAB NAVIGATION ═══════════════
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
+  
+  const el = document.getElementById('tab-' + tab);
+  if (el) el.style.display = 'block';
+  
+  const nav = document.querySelector(`.nav-tab[data-tab="${tab}"]`);
+  if (nav) nav.classList.add('active');
+
+  refreshActiveView();
+}
+
+function refreshActiveView() {
+  if (activeTab === 'dashboard') renderDashboard();
+  else if (activeTab === 'billing') renderBillingTab();
+  else if (activeTab === 'inventory') renderInventory();
+  else if (activeTab === 'stock') renderStockEntry();
+  else if (activeTab === 'transfer') renderTransferTab();
+  else if (activeTab === 'history') renderHistory();
+  else if (activeTab === 'reports') renderReports();
+  else if (activeTab === 'admin') renderAdminSettings();
+}
+
+// ═══════════════ 1. DASHBOARD ═══════════════
+function renderDashboard() {
+  const totalRev = sales.reduce((a, s) => a + (Number(s.total) || 0), 0);
+  const totalOrders = sales.length;
+  const avgVal = totalOrders ? totalRev / totalOrders : 0;
+
+  document.getElementById('ds-rev').textContent = fmtMoney(totalRev);
+  document.getElementById('ds-orders').textContent = totalOrders;
+  document.getElementById('ds-avg').textContent = fmtMoney(avgVal);
+
+  // Top seller
+  const counts = {};
+  sales.forEach(s => {
+    (s.items || []).forEach(i => { counts[i.name] = (counts[i.name] || 0) + (i.qty || 1); });
+  });
+  let topName = '—', topQty = 0;
+  Object.entries(counts).forEach(([n, q]) => { if (q > topQty) { topName = n; topQty = q; } });
+  document.getElementById('ds-top').textContent = topName;
+  document.getElementById('ds-topSub').textContent = `${topQty} units sold`;
+
+  // Category breakdown
+  const catRev = {}, catUnits = {};
+  sales.forEach(s => {
+    (s.items || []).forEach(i => {
+      const c = i.cat || 'General';
+      catRev[c] = (catRev[c] || 0) + (Number(i.price) * (i.qty || 1));
+      catUnits[c] = (catUnits[c] || 0) + (i.qty || 1);
+    });
+  });
+  const catBody = document.getElementById('dashCatTbl');
+  if (Object.keys(catRev).length === 0) {
+    catBody.innerHTML = '<tr class="no-data-row"><td colspan="3" style="text-align:center;padding:24px;color:var(--text-muted)">No sales yet</td></tr>';
+  } else {
+    catBody.innerHTML = Object.entries(catRev).map(([c, r]) => `
+      <tr>
+        <td style="font-weight:600">${c}</td>
+        <td>${catUnits[c]}</td>
+        <td style="font-weight:700;color:var(--theme-primary)">${fmtMoney(r)}</td>
+      </tr>
+    `).join('');
+  }
+
+  // Low stock
+  const lowList = [];
+  products.forEach(p => {
+    const reorder = p.reorder || 5;
+    if ((p.b1Stock || 0) <= reorder) lowList.push({ name: p.name, branch: currentTenant.b1name || 'Branch 1', stock: p.b1Stock || 0 });
+    if ((p.b2Stock || 0) <= reorder) lowList.push({ name: p.name, branch: currentTenant.b2name || 'Branch 2', stock: p.b2Stock || 0 });
+    if ((p.b3Stock || 0) <= reorder) lowList.push({ name: p.name, branch: currentTenant.b3name || 'Branch 3', stock: p.b3Stock || 0 });
+  });
+  const lowBody = document.getElementById('dashLowTbl');
+  if (lowList.length === 0) {
+    lowBody.innerHTML = '<tr class="no-data-row"><td colspan="4" style="text-align:center;padding:24px;color:var(--green);font-weight:600">All inventory healthy ✓</td></tr>';
+  } else {
+    lowBody.innerHTML = lowList.map(l => `
+      <tr>
+        <td style="font-weight:600">${l.name}</td>
+        <td><span class="badge badge-generic">${l.branch}</span></td>
+        <td style="font-weight:700;color:var(--red)">${l.stock}</td>
+        <td><span class="badge badge-low">LOW</span></td>
+      </tr>
+    `).join('');
+  }
+}
+
+// ═══════════════ 2. BILLING (POS) ═══════════════
+function renderBillingTab() {
+  const cats = ['all', ...new Set(products.map(p => p.cat).filter(Boolean))];
+  const catWrap = document.getElementById('catFilters');
+  catWrap.innerHTML = cats.map(c => `
+    <button class="btn btn-sm ${activeCat === c ? 'btn-primary' : 'btn-outline'}" onclick="filterCat('${c}')">
+      ${c === 'all' ? 'All Items' : c}
+    </button>
+  `).join('');
+
+  renderMenuGrid();
+  renderCart();
+}
+
+function filterCat(c) { activeCat = c; renderBillingTab(); }
+
+function renderMenuGrid() {
+  const q = document.getElementById('menuSearch')?.value?.toLowerCase() || '';
+  const branchKey = (document.getElementById('billingBranchSelect')?.value || 'b1') + 'Stock';
+  
+  let list = products.filter(p => {
+    if (activeCat !== 'all' && p.cat !== activeCat) return false;
+    if (q && !p.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const grid = document.getElementById('menuGrid');
+  if (list.length === 0) {
+    grid.innerHTML = '<div style="padding:40px;color:var(--text-muted);text-align:center;grid-column:1/-1">No items found in this category</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(p => {
+    const stk = p[branchKey] || 0;
+    const oos = stk <= 0;
+    return `
+      <div class="menu-card ${oos ? 'oos' : ''}" onclick="addToCart('${p.id}')">
+        <span class="badge badge-generic">${p.cat || 'Item'}</span>
+        <div class="mc-name">${p.name}</div>
+        <div class="mc-price">${fmtMoney(p.price)}</div>
+        <div class="mc-stock">${oos ? 'Out of stock' : `Stock: ${stk} ${p.unit || 'pcs'}`}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function addToCart(id) {
+  const p = products.find(x => x.id === id);
+  if (!p) return;
+  const existing = cart.find(c => c.id === id);
+  if (existing) existing.qty++;
+  else cart.push({ id, name: p.name, price: Number(p.price), cat: p.cat, qty: 1 });
+  renderCart();
+}
+
+function changeQty(idx, d) {
+  cart[idx].qty += d;
+  if (cart[idx].qty <= 0) cart.splice(idx, 1);
+  renderCart();
+}
+
+function clearCart() { cart = []; renderCart(); }
+
+function renderCart() {
+  const wrap = document.getElementById('cartItems');
+  if (cart.length === 0) {
+    wrap.innerHTML = '<div class="cart-empty">Click items on left to add</div>';
+  } else {
+    wrap.innerHTML = cart.map((c, i) => `
+      <div class="cart-item">
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:.88rem">${c.name}</div>
+          <div style="font-size:.78rem;color:var(--text-muted)">${fmtMoney(c.price)} each</div>
+        </div>
+        <div class="qty-ctrl">
+          <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
+          <span style="font-weight:700;min-width:20px;text-align:center">${c.qty}</span>
+          <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
+        </div>
+        <div style="font-weight:800;font-size:.9rem">${fmtMoney(c.price * c.qty)}</div>
+      </div>
+    `).join('');
+  }
+
+  const sub = cart.reduce((a, c) => a + c.price * c.qty, 0);
+  const gstRate = Number(currentTenant?.gstRate ?? 5);
+  const tax = sub * (gstRate / 100);
+  const total = sub + tax;
+
+  document.getElementById('cartSub').textContent = fmtMoney(sub);
+  document.getElementById('cartTaxLbl').textContent = `Tax / GST (${gstRate}%)`;
+  document.getElementById('cartTax').textContent = fmtMoney(tax);
+  document.getElementById('cartTotal').textContent = fmtMoney(total);
+}
+
+async function completeSale() {
+  if (cart.length === 0) { toast('Please add items to cart', 'err'); return; }
+
+  const branch = document.getElementById('billingBranchSelect')?.value || 'b1';
+  const custName = document.getElementById('custName')?.value.trim() || 'Walk-in Customer';
+  const custPhone = document.getElementById('custPhone')?.value.trim() || '';
+  
+  const sub = cart.reduce((a, c) => a + c.price * c.qty, 0);
+  const gstRate = Number(currentTenant?.gstRate ?? 5);
+  const tax = sub * (gstRate / 100);
+  const total = sub + tax;
+  const billNo = 'INV-' + (sales.length + 1001);
+
+  const payload = {
+    billNo,
+    branch,
+    subtotal: sub,
+    tax,
+    total,
+    items: cart,
+    customerName: custName,
+    customerPhone: custPhone,
+    cashier: currentRole || 'admin'
+  };
+
+  try {
+    const res = await fetch(`/api/tenant/${currentTenant.id}/sales`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.success) {
+      toast(`Invoice #${billNo} recorded!`, 'ok');
+      showInvoiceModal(data.sale);
+      clearCart();
+      document.getElementById('custName').value = '';
+      document.getElementById('custPhone').value = '';
+      await loadTenantData();
+    }
+  } catch (e) {
+    toast('Error recording sale', 'err');
+  }
+}
+
+function showInvoiceModal(sale) {
+  const body = document.getElementById('invoiceModalBody');
+  const bName = currentTenant[sale.branch + 'name'] || 'Branch 1';
+
+  body.innerHTML = `
+    <div style="font-family:'Plus Jakarta Sans',sans-serif;color:#0f172a;padding:10px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #e2e8f0;padding-bottom:16px;margin-bottom:16px">
+        <div>
+          ${currentTenant.logoUrl ? `<img src="${currentTenant.logoUrl}" style="max-height:48px;margin-bottom:8px"/>` : ''}
+          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:900;color:${currentTenant.accentColor || '#0f172a'}">${currentTenant.name}</h2>
+          <div style="font-size:.85rem;color:#64748b">${bName} · ${currentTenant.tagline || ''}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:800;color:var(--theme-primary)">${sale.billNo}</div>
+          <div style="font-size:.8rem;color:#64748b">${new Date(sale.ts || Date.now()).toLocaleString()}</div>
+          <span class="badge badge-ok" style="margin-top:4px">PAID ✓</span>
+        </div>
+      </div>
+
+      <div style="margin-bottom:16px;font-size:.85rem">
+        <strong>Customer:</strong> ${sale.customerName || sale.custName || 'Walk-in'} ${sale.customerPhone ? '· ' + sale.customerPhone : ''}
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:16px">
+        <thead>
+          <tr style="background:#f1f5f9;border-bottom:1.5px solid #cbd5e1">
+            <th style="padding:8px 10px;text-align:left">Item</th>
+            <th style="padding:8px 10px;text-align:center">Qty</th>
+            <th style="padding:8px 10px;text-align:right">Rate</th>
+            <th style="padding:8px 10px;text-align:right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${(sale.items || []).map(it => `
+            <tr style="border-bottom:1px solid #e2e8f0">
+              <td style="padding:8px 10px;font-weight:600">${it.name}</td>
+              <td style="padding:8px 10px;text-align:center">${it.qty}</td>
+              <td style="padding:8px 10px;text-align:right">${fmtMoney(it.price)}</td>
+              <td style="padding:8px 10px;text-align:right;font-weight:700">${fmtMoney(it.price * it.qty)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+
+      <div style="display:flex;justify-content:flex-end">
+        <div style="width:240px;display:flex;flex-direction:column;gap:6px">
+          <div style="display:flex;justify-content:space-between;font-size:.85rem"><span>Subtotal:</span><span>${fmtMoney(sale.subtotal)}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:.85rem"><span>Tax / GST:</span><span>${fmtMoney(sale.tax)}</span></div>
+          <div style="display:flex;justify-content:space-between;font-size:1.1rem;font-weight:800;border-top:2px dashed #cbd5e1;padding-top:6px;color:var(--theme-primary)">
+            <span>Total Paid:</span><span>${fmtMoney(sale.total)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  openModal('invoiceModal');
+}
+
+// ═══════════════ 3. INVENTORY CRUD ═══════════════
+function renderInventory() {
+  const b1n = currentTenant.b1name || 'Branch 1';
+  const b2n = currentTenant.b2name || 'Branch 2';
+  const b3n = currentTenant.b3name || 'Branch 3';
+
+  document.getElementById('inv-b1h').textContent = `Stock ${b1n}`;
+  document.getElementById('inv-b2h').textContent = `Stock ${b2n}`;
+  document.getElementById('inv-b3h').textContent = `Stock ${b3n}`;
+
+  const body = document.getElementById('inventoryBody');
+  if (products.length === 0) {
+    body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px">No products in catalog</td></tr>';
+    return;
+  }
+
+  body.innerHTML = products.map(p => {
+    const reorder = p.reorder || 5;
+    const ok = (p.b1Stock || 0) > reorder && (p.b2Stock || 0) > reorder;
+    return `
+      <tr>
+        <td style="font-weight:700">${p.name}</td>
+        <td><span class="badge badge-generic">${p.cat}</span></td>
+        <td style="font-weight:700;color:var(--theme-primary)">${fmtMoney(p.price)}</td>
+        <td style="color:var(--text-muted)">${fmtMoney(p.cost || 0)}</td>
+        <td style="font-weight:600;color:${(p.b1Stock || 0) <= reorder ? 'var(--red)' : 'inherit'}">${p.b1Stock || 0}</td>
+        <td style="font-weight:600;color:${(p.b2Stock || 0) <= reorder ? 'var(--red)' : 'inherit'}">${p.b2Stock || 0}</td>
+        <td style="font-weight:600;color:${(p.b3Stock || 0) <= reorder ? 'var(--red)' : 'inherit'}">${p.b3Stock || 0}</td>
+        <td>${reorder}</td>
+        <td><span class="badge ${ok ? 'badge-ok' : 'badge-low'}">${ok ? 'IN STOCK' : 'LOW'}</span></td>
+        <td>
+          <button class="btn btn-sm btn-outline" onclick="openProductModal('${p.id}')">✏ Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">🗑</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function openProductModal(id = null) {
+  editProductId = id;
+  document.getElementById('productModalTitle').textContent = id ? 'Edit Product' : 'Add New Product';
+  const b1n = currentTenant.b1name || 'Branch 1';
+  const b2n = currentTenant.b2name || 'Branch 2';
+  const b3n = currentTenant.b3name || 'Branch 3';
+  document.getElementById('pm-b1lbl').textContent = `${b1n} Stock`;
+  document.getElementById('pm-b2lbl').textContent = `${b2n} Stock`;
+  document.getElementById('pm-b3lbl').textContent = `${b3n} Stock`;
+
+  if (id) {
+    const p = products.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('pm-name').value = p.name;
+    document.getElementById('pm-cat').value = p.cat;
+    document.getElementById('pm-price').value = p.price;
+    document.getElementById('pm-cost').value = p.cost || 0;
+    document.getElementById('pm-reorder').value = p.reorder || 5;
+    document.getElementById('pm-unit').value = p.unit || 'pcs';
+    document.getElementById('pm-b1').value = p.b1Stock || 0;
+    document.getElementById('pm-b2').value = p.b2Stock || 0;
+    document.getElementById('pm-b3').value = p.b3Stock || 0;
+  } else {
+    document.getElementById('pm-name').value = '';
+    document.getElementById('pm-cat').value = '';
+    document.getElementById('pm-price').value = '';
+    document.getElementById('pm-cost').value = '';
+    document.getElementById('pm-reorder').value = '5';
+    document.getElementById('pm-unit').value = 'pcs';
+    document.getElementById('pm-b1').value = '15';
+    document.getElementById('pm-b2').value = '15';
+    document.getElementById('pm-b3').value = '10';
+  }
+  openModal('productModal');
+}
+
+async function saveProduct() {
+  const name = document.getElementById('pm-name').value.trim();
+  const cat = document.getElementById('pm-cat').value.trim() || 'General';
+  const price = parseFloat(document.getElementById('pm-price').value) || 0;
+  const cost = parseFloat(document.getElementById('pm-cost').value) || 0;
+  const reorder = parseInt(document.getElementById('pm-reorder').value) || 5;
+  const unit = document.getElementById('pm-unit').value.trim() || 'pcs';
+  const b1Stock = parseInt(document.getElementById('pm-b1').value) || 0;
+  const b2Stock = parseInt(document.getElementById('pm-b2').value) || 0;
+  const b3Stock = parseInt(document.getElementById('pm-b3').value) || 0;
+
+  if (!name || !price) { toast('Name and Price are required', 'err'); return; }
+
+  const payload = { name, cat, price, cost, reorder, unit, b1Stock, b2Stock, b3Stock };
+
+  try {
+    if (editProductId) {
+      await fetch(`/api/tenant/${currentTenant.id}/products/${editProductId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      toast('Product updated!', 'ok');
+    } else {
+      await fetch(`/api/tenant/${currentTenant.id}/products`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      toast('Product added to catalog!', 'ok');
+    }
+    closeModal('productModal');
+    await loadTenantData();
+  } catch (err) {
+    toast('Error saving product', 'err');
+  }
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Are you sure you want to delete this product?')) return;
+  try {
+    await fetch(`/api/tenant/${currentTenant.id}/products/${id}`, { method: 'DELETE' });
+    toast('Product removed', 'ok');
+    await loadTenantData();
+  } catch (err) {
+    toast('Error removing product', 'err');
+  }
+}
+
+// ═══════════════ 4. STOCK ENTRY ═══════════════
+function renderStockEntry() {
+  const b1n = currentTenant.b1name || 'Branch 1';
+  const b2n = currentTenant.b2name || 'Branch 2';
+  const b3n = currentTenant.b3name || 'Branch 3';
+
+  document.getElementById('se-b1h').textContent = `${b1n} — Set To`;
+  document.getElementById('se-b2h').textContent = `${b2n} — Set To`;
+  document.getElementById('se-b3h').textContent = `${b3n} — Set To`;
+
+  const body = document.getElementById('stockEntryBody');
+  body.innerHTML = products.map(p => `
+    <tr>
+      <td style="font-weight:700">${p.name}</td>
+      <td><span class="badge badge-generic">${p.cat}</span></td>
+      <td><input type="number" data-id="${p.id}" data-br="b1" placeholder="${p.b1Stock || 0}" style="width:90px"/></td>
+      <td><input type="number" data-id="${p.id}" data-br="b2" placeholder="${p.b2Stock || 0}" style="width:90px"/></td>
+      <td><input type="number" data-id="${p.id}" data-br="b3" placeholder="${p.b3Stock || 0}" style="width:90px"/></td>
+      <td style="font-weight:600">${p.b1Stock || 0}</td>
+      <td style="font-weight:600">${p.b2Stock || 0}</td>
+      <td style="font-weight:600">${p.b3Stock || 0}</td>
+    </tr>
+  `).join('');
+}
+
+async function saveStockEntry() {
+  const inputs = document.querySelectorAll('#stockEntryBody input[type=number]');
+  let count = 0;
+  for (const inp of inputs) {
+    if (inp.value !== '') {
+      const pid = inp.dataset.id;
+      const br = inp.dataset.br + 'Stock';
+      const val = parseInt(inp.value);
+      await fetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [br]: val })
+      });
+      count++;
+    }
+  }
+  if (count > 0) {
+    toast(`Stock updated for ${count} entries!`, 'ok');
+    await loadTenantData();
+  } else {
+    toast('No changes entered', 'warn');
+  }
+}
+
+// ═══════════════ 5. STOCK TRANSFER ═══════════════
+function renderTransferTab() {
+  const sel = document.getElementById('tfItem');
+  sel.innerHTML = '<option value="">Choose item...</option>' + products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  
+  const fromSel = document.getElementById('tfFrom');
+  const toSel = document.getElementById('tfTo');
+  const b1n = currentTenant.b1name || 'Branch 1';
+  const b2n = currentTenant.b2name || 'Branch 2';
+  const b3n = currentTenant.b3name || 'Branch 3';
+  fromSel.options[0].text = b1n; fromSel.options[1].text = b2n; fromSel.options[2].text = b3n;
+  toSel.options[0].text = b2n; toSel.options[1].text = b1n; toSel.options[2].text = b3n;
+
+  const logBody = document.getElementById('transferLogBody');
+  if (transfers.length === 0) {
+    logBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">No transfers recorded</td></tr>';
+  } else {
+    logBody.innerHTML = transfers.map(t => `
+      <tr>
+        <td style="font-size:.8rem">${new Date(t.ts).toLocaleTimeString()}</td>
+        <td style="font-weight:700">${t.productName}</td>
+        <td style="font-weight:700">${t.qty}</td>
+        <td><span class="badge badge-b1">${currentTenant[t.fromBranch + 'name'] || t.fromBranch}</span></td>
+        <td><span class="badge badge-b2">${currentTenant[t.toBranch + 'name'] || t.toBranch}</span></td>
+      </tr>
+    `).join('');
+  }
+}
+
+function updateTransferPreview() {}
+
+async function confirmTransfer() {
+  const pid = document.getElementById('tfItem').value;
+  const from = document.getElementById('tfFrom').value;
+  const to = document.getElementById('tfTo').value;
+  const qty = parseInt(document.getElementById('tfQty').value);
+  const note = document.getElementById('tfNote').value;
+
+  if (!pid || !qty || qty <= 0) { toast('Please select product & valid quantity', 'err'); return; }
+  if (from === to) { toast('Source and Destination branches must be different', 'err'); return; }
+
+  const p = products.find(x => x.id === pid);
+  const fromStockKey = from + 'Stock';
+  const toStockKey = to + 'Stock';
+
+  if ((p[fromStockKey] || 0) < qty) {
+    toast(`Insufficient stock in ${currentTenant[from + 'name'] || from}`, 'err');
+    return;
+  }
+
+  try {
+    // 1. Update product stock
+    await fetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        [fromStockKey]: (p[fromStockKey] || 0) - qty,
+        [toStockKey]: (p[toStockKey] || 0) + qty
+      })
+    });
+
+    // 2. Record transfer log
+    await fetch(`/api/tenant/${currentTenant.id}/transfers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        productName: p.name,
+        fromBranch: from,
+        toBranch: to,
+        qty,
+        note
+      })
+    });
+
+    toast('Transfer complete!', 'ok');
+    document.getElementById('tfQty').value = '';
+    document.getElementById('tfNote').value = '';
+    await loadTenantData();
+    renderTransferTab();
+  } catch (err) {
+    toast('Transfer failed', 'err');
+  }
+}
+
+// ═══════════════ 6. INVOICES & HISTORY ═══════════════
+function renderHistory() {
+  const body = document.getElementById('historyBody');
+  if (sales.length === 0) {
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px">No invoices recorded yet</td></tr>';
+    return;
+  }
+  body.innerHTML = sales.map(s => `
+    <tr>
+      <td style="font-family:'Space Mono',monospace;font-weight:700">${s.billNo}</td>
+      <td style="font-size:.82rem">${new Date(s.ts).toLocaleString()}</td>
+      <td><span class="badge badge-generic">${currentTenant[s.branch + 'name'] || s.branch}</span></td>
+      <td>${s.customerName || s.custName || 'Walk-in'}</td>
+      <td style="font-size:.82rem">${(s.items || []).map(i => `${i.name} ×${i.qty}`).join(', ')}</td>
+      <td style="font-weight:800;color:var(--theme-primary)">${fmtMoney(s.total)}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick='showInvoiceModal(${JSON.stringify(s)})'>👁 View</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function exportCSV() {
+  if (sales.length === 0) { toast('No sales to export', 'warn'); return; }
+  const rows = [['Invoice#', 'Date', 'Branch', 'Customer', 'Items', 'Total']];
+  sales.forEach(s => {
+    rows.push([
+      s.billNo,
+      new Date(s.ts).toLocaleString(),
+      currentTenant[s.branch + 'name'] || s.branch,
+      s.customerName || 'Walk-in',
+      (s.items || []).map(i => `${i.name}x${i.qty}`).join('; '),
+      s.total
+    ]);
+  });
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `${currentTenant.name}_Invoices.csv`;
+  a.click();
+}
+
+// ═══════════════ 7. REPORTS ═══════════════
+function renderReports() {
+  const b1s = sales.filter(s => s.branch === 'b1');
+  const b2s = sales.filter(s => s.branch === 'b2');
+  const b3s = sales.filter(s => s.branch === 'b3');
+
+  const b1n = currentTenant.b1name || 'Branch 1';
+  const b2n = currentTenant.b2name || 'Branch 2';
+  const b3n = currentTenant.b3name || 'Branch 3';
+
+  const rows = [
+    [b1n, b1s],
+    [b2n, b2s],
+    [b3n, b3s]
+  ];
+
+  document.getElementById('repSummaryBody').innerHTML = rows.map(([name, list]) => {
+    const sub = list.reduce((a, s) => a + (Number(s.subtotal) || 0), 0);
+    const tax = list.reduce((a, s) => a + (Number(s.tax) || 0), 0);
+    const tot = list.reduce((a, s) => a + (Number(s.total) || 0), 0);
+    return `
+      <tr>
+        <td style="font-weight:700">${name}</td>
+        <td>${list.length}</td>
+        <td>${fmtMoney(sub)}</td>
+        <td>${fmtMoney(tax)}</td>
+        <td style="font-weight:800;color:var(--theme-primary)">${fmtMoney(tot)}</td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function exportExcel() {
+  if (!window.XLSX) { toast('Excel module loading...', 'warn'); return; }
+  const wb = XLSX.utils.book_new();
+  const salesData = sales.map(s => ({
+    'Invoice No': s.billNo,
+    'Date': new Date(s.ts).toLocaleString(),
+    'Branch': currentTenant[s.branch + 'name'] || s.branch,
+    'Customer': s.customerName || 'Walk-in',
+    'Total': s.total
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(salesData), 'Sales');
+  XLSX.writeFile(wb, `${currentTenant.name}_Report.xlsx`);
+  toast('Excel report downloaded', 'ok');
+}
+
+// ═══════════════ 8. CLIENT BRANDING & LOGO UPLOAD ═══════════════
+function renderAdminSettings() {
+  if (!currentTenant) return;
+  document.getElementById('adm-tenantName').value = currentTenant.name || '';
+  document.getElementById('adm-tenantType').value = currentTenant.businessType || '';
+  document.getElementById('adm-tenantTagline').value = currentTenant.tagline || '';
+  document.getElementById('adm-themeColor').value = currentTenant.themeColor || '#c8860a';
+  document.getElementById('adm-themeColorHex').value = currentTenant.themeColor || '#c8860a';
+  document.getElementById('adm-accentColor').value = currentTenant.accentColor || '#3d1f0a';
+  document.getElementById('adm-accentColorHex').value = currentTenant.accentColor || '#3d1f0a';
+  document.getElementById('adm-currency').value = currentTenant.currency || '₹';
+  document.getElementById('adm-gstRate').value = currentTenant.gstRate ?? 5;
+  document.getElementById('adm-b1name').value = currentTenant.b1name || 'Branch 1';
+  document.getElementById('adm-b2name').value = currentTenant.b2name || 'Branch 2';
+  document.getElementById('adm-b3name').value = currentTenant.b3name || 'Branch 3';
+
+  renderLogoPreview();
+}
+
+function renderLogoPreview() {
+  const wrap = document.getElementById('logoPreviewContainer');
+  const url = currentUploadedLogoBase64 || currentTenant.logoUrl;
+  if (url) {
+    wrap.innerHTML = `
+      <img src="${url}" class="branding-logo-preview" alt="Uploaded Logo"/>
+      <div style="font-size:.82rem;font-weight:700;color:var(--theme-primary)">✓ Custom Logo Active (Click to Replace)</div>
+    `;
+  } else {
+    wrap.innerHTML = `
+      <div style="font-size:2rem;margin-bottom:8px">📸</div>
+      <div style="font-weight:600;font-size:.9rem;color:var(--text-main)">Click to upload custom logo</div>
+      <div style="font-size:.78rem;color:var(--text-muted)">PNG, JPG, SVG or WebP format</div>
+    `;
+  }
+}
+
+function handleLogoUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    currentUploadedLogoBase64 = e.target.result;
+    renderLogoPreview();
+    toast('Logo uploaded! Click "Save Brand Settings" to persist.', 'ok');
+  };
+  reader.readAsDataURL(file);
+}
+
+function previewColors() {
+  const primary = document.getElementById('adm-themeColor').value;
+  const accent = document.getElementById('adm-accentColor').value;
+  document.documentElement.style.setProperty('--theme-primary', primary);
+  document.documentElement.style.setProperty('--theme-accent', accent);
+}
+
+async function saveTenantBranding() {
+  const name = document.getElementById('adm-tenantName').value.trim();
+  const businessType = document.getElementById('adm-tenantType').value.trim();
+  const tagline = document.getElementById('adm-tenantTagline').value.trim();
+  const themeColor = document.getElementById('adm-themeColor').value;
+  const accentColor = document.getElementById('adm-accentColor').value;
+  const currency = document.getElementById('adm-currency').value.trim() || '$';
+  const gstRate = parseFloat(document.getElementById('adm-gstRate').value) || 0;
+  const b1name = document.getElementById('adm-b1name').value.trim() || 'Branch 1';
+  const b2name = document.getElementById('adm-b2name').value.trim() || 'Branch 2';
+  const b3name = document.getElementById('adm-b3name').value.trim() || 'Branch 3';
+
+  const updates = {
+    name, businessType, tagline, themeColor, accentColor,
+    currency, gstRate, b1name, b2name, b3name
+  };
+
+  if (currentUploadedLogoBase64) {
+    updates.logoUrl = currentUploadedLogoBase64;
+  }
+
+  try {
+    const res = await fetch(`/api/tenants/${currentTenant.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    const data = await res.json();
+    if (data.success) {
+      currentTenant = data.tenant;
+      applyTenantTheme(currentTenant);
+      document.getElementById('hdrTenantName').textContent = currentTenant.name;
+      document.getElementById('hdrTenantType').textContent = currentTenant.businessType || '';
+      
+      const logoContainer = document.getElementById('hdrLogoContainer');
+      if (currentTenant.logoUrl) {
+        logoContainer.innerHTML = `<img src="${currentTenant.logoUrl}" class="hdr-logo-img" alt="logo"/>`;
+      }
+      toast('Brand & Logo updated successfully! ✓', 'ok');
+      await loadTenants();
+    }
+  } catch (err) {
+    toast('Error saving branding', 'err');
+  }
+}
+
+// ═══════════════ DATABASE CONFIG & NEON ═══════════════
+function openDbConfigModal() {
+  fetch('/api/db-status')
+    .then(r => r.json())
+    .then(st => {
+      document.getElementById('dbStatusTitle').textContent = st.isPostgresConnected
+        ? '✓ Connected to Neon / PostgreSQL Cloud Database'
+        : '✓ Active Isolated Multi-Tenant Storage Layer';
+      document.getElementById('dbStatusDesc').textContent = st.isPostgresConnected
+        ? 'Every client workspace has its own row-level tenant boundary with separate products, invoices, and audit trails.'
+        : 'Data is strictly partitioned per client ID in the backend storage engine.';
+      openModal('dbConfigModal');
+    })
+    .catch(() => openModal('dbConfigModal'));
+}
+
+// Init on load
+window.addEventListener('DOMContentLoaded', () => {
+  loadTenants();
+});
+</script>
+</body>
+</html>

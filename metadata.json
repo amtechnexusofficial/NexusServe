@@ -1,0 +1,8 @@
+{
+  "name": "OmniPOS & Inventory — Multi-Tenant Platform",
+  "description": "Multi-tenant POS and inventory SaaS platform with custom client branding, logo upload, branch tracking, and isolated client data.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
