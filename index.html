@@ -348,9 +348,17 @@ input:focus, select:focus, textarea:focus {
     <!-- Step 1: Select Business Tenant Workspace -->
     <div id="tenantSelectView">
       <div class="portal-header">
-        <div class="portal-logo-pill">⚡ Central POS Platform</div>
-        <h1 class="portal-title">Select Workspace</h1>
-        <p class="portal-subtitle">Each customer gets complete data isolation & custom branding</p>
+        <div class="portal-logo-pill">👑 Master Platform Portal · AMtechnexus</div>
+        <h1 class="portal-title">Workspaces &amp; Shops</h1>
+        <p class="portal-subtitle">Manage client workspaces or copy isolated customer login links</p>
+        
+        <div style="margin-top:12px;background:#f8fafc;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.78rem">
+          <div style="display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            <span style="font-weight:700;color:var(--text-muted)">Master Admin URL:</span>
+            <code style="font-family:'Space Mono',monospace;color:var(--text-main);font-weight:700" id="masterUrlDisplay">loading...</code>
+          </div>
+          <button class="btn btn-outline btn-xs" style="padding:3px 8px;font-size:.72rem;white-space:nowrap" onclick="copyMasterLink()">📋 Copy</button>
+        </div>
       </div>
 
       <div class="tenant-list" id="tenantList">
@@ -359,13 +367,18 @@ input:focus, select:focus, textarea:focus {
 
       <div class="portal-footer">
         <button class="btn btn-outline btn-sm" onclick="openCreateTenantModal()">＋ New Customer Workspace</button>
-        <button class="btn btn-primary btn-sm" onclick="openDbConfigModal()">⚙ Database Settings</button>
+        <button class="btn btn-primary btn-sm" onclick="openDbConfigModal()">⚙ Database &amp; API Settings</button>
       </div>
     </div>
 
     <!-- Step 2: Role Selection for Chosen Tenant -->
     <div id="roleSelectView" style="display:none">
       <div class="portal-header">
+        <div id="customerPortalPill" style="display:none;margin-bottom:8px">
+          <span style="background:var(--theme-light,#e2e8f0);color:var(--theme-primary,#0f172a);padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:800;border:1px solid var(--theme-primary)">
+            🏬 Dedicated Customer Shop Portal
+          </span>
+        </div>
         <div id="activeTenantLogoBox" style="margin-bottom:10px"></div>
         <h1 class="portal-title" id="activeTenantName">Customer Shop</h1>
         <p class="portal-subtitle" id="activeTenantTagline">Point of Sale &amp; Inventory System</p>
@@ -395,8 +408,9 @@ input:focus, select:focus, textarea:focus {
           </button>
         </div>
       </div>
-      <div class="portal-footer">
-        <button class="btn btn-outline btn-sm" onclick="backToTenantSelect()">← Switch Customer</button>
+      <div class="portal-footer" style="justify-content:space-between">
+        <button class="btn btn-outline btn-sm" id="btnBackToMaster" onclick="backToTenantSelect()">← Switch Workspace</button>
+        <button class="btn btn-outline btn-sm" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL for this customer">🔗 Share Customer Link</button>
       </div>
     </div>
 
@@ -449,6 +463,9 @@ input:focus, select:focus, textarea:focus {
       </div>
     </div>
 
+    <button class="hdr-tenant-switch" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL to share with client">
+      🔗 Customer Link
+    </button>
     <button class="hdr-tenant-switch" onclick="promptSwitchTenant()">
       🏢 Switch Client
     </button>
@@ -742,6 +759,36 @@ input:focus, select:focus, textarea:focus {
         <button class="btn btn-primary" onclick="saveTenantBranding()">💾 Save Brand Settings</button>
       </div>
 
+      <!-- Customer Direct Access URL Card -->
+      <div class="tbl-wrap" style="padding:20px;margin-bottom:20px;background:#f8fafc;border:1.5px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:1.2rem">🔗</span>
+              <h3 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;margin:0">
+                Customer Direct Login URL
+              </h3>
+              <span class="tenant-badge" style="background:#e0f2fe;color:#0369a1;font-weight:700">Isolated Store URL</span>
+            </div>
+            <p style="font-size:.84rem;color:var(--text-muted);margin:0">
+              Share this dedicated link with your client or store cashiers. They will land directly into this shop with custom branding and complete data isolation.
+            </p>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="copyActiveTenantCustomerLink()">
+              📋 Copy Customer Link
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="openActiveTenantCustomerLink()">
+              🚀 Open In New Tab ↗
+            </button>
+          </div>
+        </div>
+        <div style="margin-top:12px;background:#ffffff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;display:flex;align-items:center;gap:10px">
+          <span style="font-size:.8rem;color:var(--text-muted);font-weight:700">STORE LINK:</span>
+          <code id="activeCustomerUrlCode" style="font-family:'Space Mono',monospace;font-size:.82rem;font-weight:700;color:var(--theme-primary);word-break:break-all"></code>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
         <!-- Logo & Identity Card -->
         <div class="tbl-wrap" style="padding:24px">
@@ -879,6 +926,23 @@ input:focus, select:focus, textarea:focus {
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-left:4px solid #16a34a;border-radius:var(--radius-sm);padding:14px 18px;margin-bottom:16px">
         <div style="font-weight:700;color:#166534;margin-bottom:4px" id="dbStatusTitle">Database Connected</div>
         <div style="font-size:.85rem;color:#15803d" id="dbStatusDesc">The platform guarantees strict isolation per client ID in the backend data layer.</div>
+      </div>
+
+      <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px">
+        <div style="font-weight:800;color:var(--text-main);font-size:.9rem;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+          <span>🌐</span> Backend API Server URL (For Cloudflare Pages)
+        </div>
+        <p style="font-size:.82rem;color:var(--text-muted);line-height:1.4;margin-bottom:10px">
+          When deployed on Cloudflare Pages (<code>nexusserve.pages.dev</code>), the frontend connects to this backend API to sync with Neon PostgreSQL. If offline or unconfigured, it automatically runs in resilient browser storage.
+        </p>
+        <div class="form-group" style="margin-bottom:8px">
+          <input type="text" id="cfgApiBaseUrl" placeholder="https://ais-pre-g6ixkn5zaw4hpy4iwxmqc7-241779508615.asia-southeast1.run.app" style="font-family:'Space Mono',monospace;font-size:.82rem"/>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="saveAndTestApiUrl()">⚡ Test &amp; Save Server URL</button>
+          <button class="btn btn-outline btn-sm" onclick="resetApiUrlToDefault()">↺ Reset Live Server</button>
+          <span id="apiUrlTestStatus" style="font-size:.8rem;font-weight:700"></span>
+        </div>
       </div>
 
       <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px">
@@ -1022,23 +1086,255 @@ function openModal(id) { document.getElementById(id).classList.add('show'); }
 function closeModal(id) { document.getElementById(id).classList.remove('show'); }
 function closeModalOut(e, id) { if (e.target.id === id) closeModal(id); }
 
-// ═══════════════ TENANT WORKSPACE MANAGEMENT ═══════════════
-async function loadTenants() {
+// ═══════════════ API & RESILIENT STORAGE ENGINE ═══════════════
+const PROD_BACKEND_URL = 'https://ais-pre-g6ixkn5zaw4hpy4iwxmqc7-241779508615.asia-southeast1.run.app';
+
+function getApiBase() {
+  const custom = localStorage.getItem('omni_api_base');
+  if (custom !== null && custom !== undefined && custom.trim() !== '') {
+    return custom.trim().replace(/\/+$/, '');
+  }
+  if (window.location.hostname.includes('pages.dev') || window.location.hostname.includes('github.io')) {
+    return PROD_BACKEND_URL;
+  }
+  return '';
+}
+
+async function apiFetch(endpoint, options = {}) {
+  const base = getApiBase();
+  const url = base ? `${base}${endpoint}` : endpoint;
   try {
-    const res = await fetch('/api/tenants');
-    const data = await res.json();
-    if (data.success) {
-      tenants = data.tenants;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6500);
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+        ...(options.headers || {})
+      }
+    });
+    clearTimeout(timeoutId);
+    if (!res.ok) {
+      console.warn(`apiFetch [${options.method || 'GET'}] ${url} returned ${res.status}`);
+      return null;
+    }
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json') && !contentType.includes('text/')) {
+      return null;
+    }
+    return await res.json();
+  } catch (err) {
+    console.warn(`apiFetch error for ${url}:`, err.message);
+    return null;
+  }
+}
+
+// Built-in starter customer templates
+const DEFAULT_TENANTS = [
+  {
+    id: 'nb-cakes',
+    name: 'NB Cakes & Desserts',
+    code: 'nb',
+    username: 'nb',
+    password: 'pos' + Math.floor(1000 + Math.random() * 9000),
+    businessType: 'Bakery & Cake Shop',
+    tagline: 'Freshly Baked Goodness & Artisan Cakes',
+    currency: '₹',
+    themeColor: '#c8860a',
+    accentColor: '#3d1f0a',
+    logoUrl: '',
+    gstRate: 5,
+    b1name: 'Flagship Store',
+    b2name: 'Express Kiosk',
+    b3name: 'Delivery Hub',
+    pins: { admin: '1234', b1: '1111', b2: '2222', b3: '3333' },
+    isOnboarded: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'urban-bites',
+    name: 'Urban Bites & Cafe',
+    code: 'ub',
+    username: 'ub',
+    password: 'pos' + Math.floor(1000 + Math.random() * 9000),
+    businessType: 'Cafe & Fast Food',
+    tagline: 'Artisanal Coffee & Gourmet Street Food',
+    currency: '$',
+    themeColor: '#2563eb',
+    accentColor: '#0f172a',
+    logoUrl: '',
+    gstRate: 8,
+    b1name: 'Main Cafe',
+    b2name: 'Drive Thru',
+    b3name: 'Pop-up Cart',
+    pins: { admin: '1234', b1: '1111', b2: '2222', b3: '3333' },
+    isOnboarded: true,
+    createdAt: new Date().toISOString()
+  }
+];
+
+const DEFAULT_SEED_ITEMS = [
+  { name: 'Signature Chocolate Brownie', cat: 'Brownies', price: 95, cost: 45, b1Stock: 35, b2Stock: 20, b3Stock: 15, reorder: 10, unit: 'pcs' },
+  { name: 'Red Velvet Classic Slice', cat: 'Cakes', price: 120, cost: 55, b1Stock: 20, b2Stock: 12, b3Stock: 8, reorder: 5, unit: 'pcs' },
+  { name: 'Nutella Stuffed Bun', cat: 'Buns', price: 80, cost: 35, b1Stock: 25, b2Stock: 15, b3Stock: 10, reorder: 8, unit: 'pcs' },
+  { name: 'Tres Leches Classic Box', cat: 'Tres Leches', price: 180, cost: 85, b1Stock: 15, b2Stock: 10, b3Stock: 5, reorder: 5, unit: 'pcs' },
+  { name: 'Lotus Biscoff Cheesecake', cat: 'Cheesecake', price: 190, cost: 90, b1Stock: 18, b2Stock: 8, b3Stock: 6, reorder: 5, unit: 'pcs' },
+  { name: 'Iced Caramel Macchiato', cat: 'Beverages', price: 130, cost: 40, b1Stock: 50, b2Stock: 40, b3Stock: 30, reorder: 15, unit: 'cups' }
+];
+
+function getLocalTenants() {
+  try {
+    const raw = localStorage.getItem('omni_tenants');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr) && arr.length > 0) return arr;
+    }
+  } catch (e) {}
+  return [...DEFAULT_TENANTS];
+}
+
+function saveLocalTenant(t) {
+  const cur = getLocalTenants();
+  const idx = cur.findIndex(x => x.id === t.id);
+  if (idx >= 0) cur[idx] = { ...cur[idx], ...t };
+  else cur.push(t);
+  try { localStorage.setItem('omni_tenants', JSON.stringify(cur)); } catch (e) {}
+  
+  const pKey = 'omni_prods_' + t.id;
+  if (!localStorage.getItem(pKey)) {
+    const seed = DEFAULT_SEED_ITEMS.map((item, idx) => ({
+      id: 'prod_' + t.id.slice(0, 4) + '_' + (idx + 1),
+      ...item
+    }));
+    try { localStorage.setItem(pKey, JSON.stringify(seed)); } catch(e) {}
+  }
+}
+
+function getLocalData(tenantId) {
+  let p = [], s = [], st = [], tr = [];
+  try { p = JSON.parse(localStorage.getItem('omni_prods_' + tenantId) || '[]'); } catch(e) {}
+  try { s = JSON.parse(localStorage.getItem('omni_sales_' + tenantId) || '[]'); } catch(e) {}
+  try { st = JSON.parse(localStorage.getItem('omni_stocklogs_' + tenantId) || '[]'); } catch(e) {}
+  try { tr = JSON.parse(localStorage.getItem('omni_transfers_' + tenantId) || '[]'); } catch(e) {}
+
+  if (p.length === 0) {
+    p = DEFAULT_SEED_ITEMS.map((item, idx) => ({
+      id: 'prod_' + tenantId.slice(0, 4) + '_' + (idx + 1),
+      ...item
+    }));
+    try { localStorage.setItem('omni_prods_' + tenantId, JSON.stringify(p)); } catch(e) {}
+  }
+  return { products: p, sales: s, stockLogs: st, transfers: tr };
+}
+
+function saveLocalData(tenantId, data) {
+  if (data.products) {
+    try { localStorage.setItem('omni_prods_' + tenantId, JSON.stringify(data.products)); } catch(e) {}
+  }
+  if (data.sales) {
+    try { localStorage.setItem('omni_sales_' + tenantId, JSON.stringify(data.sales)); } catch(e) {}
+  }
+  if (data.stockLogs) {
+    try { localStorage.setItem('omni_stocklogs_' + tenantId, JSON.stringify(data.stockLogs)); } catch(e) {}
+  }
+  if (data.transfers) {
+    try { localStorage.setItem('omni_transfers_' + tenantId, JSON.stringify(data.transfers)); } catch(e) {}
+  }
+}
+
+// ═══════════════ DIRECT LINK UTILITIES ═══════════════
+function getMasterPortalUrl() {
+  return `${window.location.origin}${window.location.pathname}`;
+}
+
+function getCustomerPortalUrl(tenantId) {
+  const tid = tenantId || (currentTenant ? currentTenant.id : '');
+  return `${window.location.origin}${window.location.pathname}?workspace=${encodeURIComponent(tid)}`;
+}
+
+function copyMasterLink() {
+  const url = getMasterPortalUrl();
+  navigator.clipboard.writeText(url)
+    .then(() => toast(`Master Platform URL copied: ${url}`, 'ok'))
+    .catch(() => prompt('Copy Master Platform URL:', url));
+}
+
+function copyCustomerLink(tenantId) {
+  const url = getCustomerPortalUrl(tenantId);
+  const target = tenants.find(t => t.id === tenantId);
+  const name = target ? target.name : 'Customer';
+  navigator.clipboard.writeText(url)
+    .then(() => toast(`Customer link for "${name}" copied!`, 'ok'))
+    .catch(() => prompt(`Copy Customer Direct URL for ${name}:`, url));
+}
+
+function copyActiveTenantCustomerLink() {
+  if (!currentTenant) return;
+  copyCustomerLink(currentTenant.id);
+}
+
+function openActiveTenantCustomerLink() {
+  if (!currentTenant) return;
+  window.open(getCustomerPortalUrl(currentTenant.id), '_blank');
+}
+
+// ═══════════════ TENANT WORKSPACE MANAGEMENT ═══════════════
+let isDirectCustomerView = false;
+
+async function loadTenants() {
+  // Always initialize from fast local storage first
+  tenants = getLocalTenants();
+  renderTenantList();
+
+  // Check URL routing: ?workspace=xyz
+  const routed = handleInitialRouting();
+  if (routed) return;
+
+  // Background fetch from cloud API
+  try {
+    const data = await apiFetch('/api/tenants');
+    if (data && data.success && Array.isArray(data.tenants)) {
+      // Merge remote with local tenants
+      const mergedMap = new Map();
+      tenants.forEach(t => mergedMap.set(t.id, t));
+      data.tenants.forEach(t => {
+        mergedMap.set(t.id, { ...(mergedMap.get(t.id) || {}), ...t });
+        saveLocalTenant(t);
+      });
+      tenants = Array.from(mergedMap.values());
+      try { localStorage.setItem('omni_tenants', JSON.stringify(tenants)); } catch(e) {}
       renderTenantList();
     }
   } catch (err) {
-    console.error('Failed to fetch tenants:', err);
+    console.warn('Using local tenant store:', err);
   }
+}
+
+function handleInitialRouting() {
+  const params = new URLSearchParams(window.location.search);
+  const target = params.get('workspace') || params.get('shop') || params.get('tenant') || params.get('t');
+  if (target) {
+    const matched = tenants.find(t => 
+      t.id.toLowerCase() === target.toLowerCase() ||
+      (t.code && t.code.toLowerCase() === target.toLowerCase()) ||
+      (t.username && t.username.toLowerCase() === target.toLowerCase())
+    );
+    if (matched) {
+      isDirectCustomerView = true;
+      chooseTenant(matched.id, true);
+      return true;
+    }
+  }
+  return false;
 }
 
 function renderTenantList() {
   const list = document.getElementById('tenantList');
   if (!list) return;
+
+  const masterEl = document.getElementById('masterUrlDisplay');
+  if (masterEl) masterEl.textContent = getMasterPortalUrl();
 
   if (!tenants || tenants.length === 0) {
     list.innerHTML = `
@@ -1059,11 +1355,14 @@ function renderTenantList() {
         <div class="tenant-name">${t.name}</div>
         <div class="tenant-desc">${t.businessType || 'Retail POS'} · ${t.tagline || ''}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
+      <div style="display:flex;align-items:center;gap:6px">
         <span class="tenant-badge" style="background:${t.themeColor || '#e2e8f0'}22;color:${t.themeColor || '#0f172a'};font-weight:700">
           ${t.currency || '$'} Active
         </span>
-        <button class="btn btn-sm btn-primary" style="padding:6px 12px;font-size:.78rem" onclick="event.stopPropagation(); quickLaunchTenant('${t.id}')">
+        <button class="btn btn-sm btn-outline" style="padding:5px 9px;font-size:.76rem" title="Copy isolated customer login link" onclick="event.stopPropagation(); copyCustomerLink('${t.id}')">
+          🔗 Link
+        </button>
+        <button class="btn btn-sm btn-primary" style="padding:5px 12px;font-size:.76rem" onclick="event.stopPropagation(); quickLaunchTenant('${t.id}')">
           ⚡ Open
         </button>
       </div>
@@ -1089,11 +1388,21 @@ function quickDemoPin() {
   }, 150);
 }
 
-function chooseTenant(tenantId) {
+function chooseTenant(tenantId, isDirect = false) {
   const t = tenants.find(x => x.id === tenantId);
   if (!t) return;
   currentTenant = t;
   applyTenantTheme(t);
+
+  const pill = document.getElementById('customerPortalPill');
+  const backBtn = document.getElementById('btnBackToMaster');
+  if (isDirect || isDirectCustomerView) {
+    if (pill) pill.style.display = 'block';
+    if (backBtn) backBtn.textContent = '← Central Platform Portal';
+  } else {
+    if (pill) pill.style.display = 'none';
+    if (backBtn) backBtn.textContent = '← Switch Workspace';
+  }
 
   document.getElementById('activeTenantName').textContent = t.name;
   document.getElementById('activeTenantTagline').textContent = t.tagline || t.businessType || 'POS & Inventory';
@@ -1114,6 +1423,10 @@ function chooseTenant(tenantId) {
 }
 
 function backToTenantSelect() {
+  if (isDirectCustomerView) {
+    window.location.href = window.location.pathname;
+    return;
+  }
   document.getElementById('tenantSelectView').style.display = 'block';
   document.getElementById('roleSelectView').style.display = 'none';
   document.getElementById('pinEntryView').style.display = 'none';
@@ -1124,30 +1437,78 @@ function openCreateTenantModal() {
 }
 
 async function submitCreateTenant() {
-  const name = document.getElementById('newTenantName').value.trim();
-  const businessType = document.getElementById('newTenantType').value.trim();
+  const nameInput = document.getElementById('newTenantName');
+  const name = nameInput.value.trim();
+  const businessType = document.getElementById('newTenantType').value.trim() || 'Food & Retail';
   const currency = document.getElementById('newTenantCurrency').value.trim() || '₹';
-  const themeColor = document.getElementById('newTenantColor').value;
+  const themeColor = document.getElementById('newTenantColor').value || '#0284c7';
   const adminPin = document.getElementById('newTenantPin').value.trim() || '1234';
 
-  if (!name) { toast('Please enter a shop name', 'err'); return; }
+  if (!name) {
+    toast('Please enter a shop name', 'err');
+    nameInput.focus();
+    return;
+  }
 
+  const btn = document.getElementById('btnSubmitTenant');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+
+  // Resilient slug generation
+  const baseSlug = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 25) || 'shop';
+  const cleanId = `${baseSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+  const code = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'pos';
+
+  const newTenantObj = {
+    id: cleanId,
+    name,
+    code,
+    username: code,
+    password: 'pos' + Math.floor(1000 + Math.random() * 9000),
+    businessType,
+    tagline: 'Quality Products & Efficient Service',
+    currency,
+    themeColor,
+    accentColor: '#0f172a',
+    logoUrl: '',
+    gstRate: 5,
+    b1name: 'Main Branch',
+    b2name: 'Counter 2',
+    b3name: 'Delivery Unit',
+    pins: { admin: adminPin, b1: '1111', b2: '2222', b3: '3333' },
+    isOnboarded: true,
+    createdAt: new Date().toISOString()
+  };
+
+  // Immediate save to client database
+  saveLocalTenant(newTenantObj);
+
+  // Background sync to backend database (Neon or JSON)
   try {
-    const res = await fetch('/api/tenants', {
+    const data = await apiFetch('/api/tenants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, businessType, currency, themeColor, adminPin })
     });
-    const data = await res.json();
-    if (data.success) {
-      toast(`Customer workspace "${name}" created!`, 'ok');
+    
+    if (data && data.success && data.tenant) {
+      saveLocalTenant(data.tenant);
+      toast(`Customer workspace "${name}" created in Cloud Database!`, 'ok');
       closeModal('createTenantModal');
       await loadTenants();
       chooseTenant(data.tenant.id);
+      return;
     }
   } catch (err) {
-    toast('Error creating customer shop', 'err');
+    console.warn('Cloud sync deferred, saved locally:', err);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Create Isolated Shop'; }
   }
+
+  // Graceful completion
+  toast(`Customer workspace "${name}" created!`, 'ok');
+  closeModal('createTenantModal');
+  await loadTenants();
+  chooseTenant(newTenantObj.id);
 }
 
 // ═══════════════ ROLE & PIN VERIFICATION ═══════════════
@@ -1256,18 +1617,28 @@ function applyTenantTheme(t) {
 // ═══════════════ LOAD TENANT ISOLATED DATA ═══════════════
 async function loadTenantData() {
   if (!currentTenant) return;
+
+  // 1. Immediately hydrate from local storage for instant render
+  const local = getLocalData(currentTenant.id);
+  products = local.products || [];
+  sales = local.sales || [];
+  stockLogs = local.stockLogs || [];
+  transfers = local.transfers || [];
+  refreshActiveView();
+
+  // 2. Fetch latest data from backend API
   try {
-    const res = await fetch(`/api/tenant/${currentTenant.id}/data`);
-    const data = await res.json();
-    if (data.success) {
-      products = data.products || [];
-      sales = data.sales || [];
-      stockLogs = data.stockLogs || [];
-      transfers = data.transfers || [];
+    const data = await apiFetch(`/api/tenant/${currentTenant.id}/data`);
+    if (data && data.success) {
+      products = data.products || products;
+      sales = data.sales || sales;
+      stockLogs = data.stockLogs || stockLogs;
+      transfers = data.transfers || transfers;
+      saveLocalData(currentTenant.id, { products, sales, stockLogs, transfers });
       refreshActiveView();
     }
   } catch (err) {
-    console.error('Error fetching tenant data:', err);
+    console.warn('Operating in local tenant storage mode:', err);
   }
 }
 
@@ -1482,24 +1853,39 @@ async function completeSale() {
     cashier: currentRole || 'admin'
   };
 
-  try {
-    const res = await fetch(`/api/tenant/${currentTenant.id}/sales`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    const data = await res.json();
-    if (data.success) {
-      toast(`Invoice #${billNo} recorded!`, 'ok');
-      showInvoiceModal(data.sale);
-      clearCart();
-      document.getElementById('custName').value = '';
-      document.getElementById('custPhone').value = '';
-      await loadTenantData();
+  // 1. Immediately record in local tenant data for guaranteed reliability
+  const curData = getLocalData(currentTenant.id);
+  const newSale = {
+    id: 'sale_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
+    tenantId: currentTenant.id,
+    ...payload,
+    ts: new Date().toISOString()
+  };
+  curData.sales.unshift(newSale);
+
+  // Deduct inventory quantities locally
+  cart.forEach(item => {
+    const prod = curData.products.find(p => p.id === item.productId);
+    if (prod) {
+      const brKey = (branch || 'b1') + 'Stock';
+      prod[brKey] = Math.max(0, (prod[brKey] || 0) - (item.qty || 1));
     }
-  } catch (e) {
-    toast('Error recording sale', 'err');
-  }
+  });
+  saveLocalData(currentTenant.id, curData);
+
+  // 2. Background sync to backend API
+  apiFetch(`/api/tenant/${currentTenant.id}/sales`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).catch(() => {});
+
+  toast(`Invoice #${billNo} recorded!`, 'ok');
+  showInvoiceModal(newSale);
+  clearCart();
+  document.getElementById('custName').value = '';
+  document.getElementById('custPhone').value = '';
+  await loadTenantData();
 }
 
 function showInvoiceModal(sale) {
@@ -1650,38 +2036,50 @@ async function saveProduct() {
 
   const payload = { name, cat, price, cost, reorder, unit, b1Stock, b2Stock, b3Stock };
 
+  // 1. Immediately update local data
+  const curData = getLocalData(currentTenant.id);
+  if (editProductId) {
+    const idx = curData.products.findIndex(p => p.id === editProductId);
+    if (idx >= 0) curData.products[idx] = { ...curData.products[idx], ...payload };
+  } else {
+    const newP = { id: 'prod_' + Date.now(), ...payload };
+    curData.products.unshift(newP);
+  }
+  saveLocalData(currentTenant.id, curData);
+  closeModal('productModal');
+  toast(editProductId ? 'Product updated!' : 'Product added to catalog!', 'ok');
+  await loadTenantData();
+
+  // 2. Background sync to backend API
   try {
     if (editProductId) {
-      await fetch(`/api/tenant/${currentTenant.id}/products/${editProductId}`, {
+      await apiFetch(`/api/tenant/${currentTenant.id}/products/${editProductId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      toast('Product updated!', 'ok');
     } else {
-      await fetch(`/api/tenant/${currentTenant.id}/products`, {
+      await apiFetch(`/api/tenant/${currentTenant.id}/products`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-      toast('Product added to catalog!', 'ok');
     }
-    closeModal('productModal');
-    await loadTenantData();
   } catch (err) {
-    toast('Error saving product', 'err');
+    console.warn('Product sync deferred:', err);
   }
 }
 
 async function deleteProduct(id) {
   if (!confirm('Are you sure you want to delete this product?')) return;
+  const curData = getLocalData(currentTenant.id);
+  curData.products = curData.products.filter(p => p.id !== id);
+  saveLocalData(currentTenant.id, curData);
+  toast('Product removed', 'ok');
+  await loadTenantData();
   try {
-    await fetch(`/api/tenant/${currentTenant.id}/products/${id}`, { method: 'DELETE' });
-    toast('Product removed', 'ok');
-    await loadTenantData();
-  } catch (err) {
-    toast('Error removing product', 'err');
-  }
+    await apiFetch(`/api/tenant/${currentTenant.id}/products/${id}`, { method: 'DELETE' });
+  } catch (err) {}
 }
 
 // ═══════════════ 4. STOCK ENTRY ═══════════════
@@ -1712,20 +2110,29 @@ function renderStockEntry() {
 async function saveStockEntry() {
   const inputs = document.querySelectorAll('#stockEntryBody input[type=number]');
   let count = 0;
+  const curData = getLocalData(currentTenant.id);
+
   for (const inp of inputs) {
     if (inp.value !== '') {
       const pid = inp.dataset.id;
       const br = inp.dataset.br + 'Stock';
       const val = parseInt(inp.value);
-      await fetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
+      const prod = curData.products.find(p => p.id === pid);
+      if (prod) {
+        prod[br] = val;
+        count++;
+      }
+      // Async sync
+      apiFetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [br]: val })
-      });
-      count++;
+      }).catch(() => {});
     }
   }
+
   if (count > 0) {
+    saveLocalData(currentTenant.id, curData);
     toast(`Stock updated for ${count} entries!`, 'ok');
     await loadTenantData();
   } else {
@@ -1783,38 +2190,54 @@ async function confirmTransfer() {
     return;
   }
 
-  try {
-    // 1. Update product stock
-    await fetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        [fromStockKey]: (p[fromStockKey] || 0) - qty,
-        [toStockKey]: (p[toStockKey] || 0) + qty
-      })
-    });
-
-    // 2. Record transfer log
-    await fetch(`/api/tenant/${currentTenant.id}/transfers`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        productName: p.name,
-        fromBranch: from,
-        toBranch: to,
-        qty,
-        note
-      })
-    });
-
-    toast('Transfer complete!', 'ok');
-    document.getElementById('tfQty').value = '';
-    document.getElementById('tfNote').value = '';
-    await loadTenantData();
-    renderTransferTab();
-  } catch (err) {
-    toast('Transfer failed', 'err');
+  // 1. Update local state immediately
+  const curData = getLocalData(currentTenant.id);
+  const targetProd = curData.products.find(x => x.id === pid);
+  if (targetProd) {
+    targetProd[fromStockKey] = (targetProd[fromStockKey] || 0) - qty;
+    targetProd[toStockKey] = (targetProd[toStockKey] || 0) + qty;
   }
+  const newTransfer = {
+    id: 'tf_' + Date.now(),
+    tenantId: currentTenant.id,
+    productName: p.name,
+    fromBranch: from,
+    toBranch: to,
+    qty,
+    note,
+    ts: new Date().toISOString()
+  };
+  curData.transfers.unshift(newTransfer);
+  saveLocalData(currentTenant.id, curData);
+
+  toast('Transfer complete!', 'ok');
+  document.getElementById('tfQty').value = '';
+  document.getElementById('tfNote').value = '';
+  await loadTenantData();
+
+  // 2. Background sync
+  apiFetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      [fromStockKey]: (targetProd ? targetProd[fromStockKey] : 0),
+      [toStockKey]: (targetProd ? targetProd[toStockKey] : 0)
+    })
+  }).catch(() => {});
+
+  apiFetch(`/api/tenant/${currentTenant.id}/transfers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      productName: p.name,
+      fromBranch: from,
+      toBranch: to,
+      qty,
+      note
+    })
+  }).catch(() => {});
+  await loadTenantData();
+  renderTransferTab();
 }
 
 // ═══════════════ 6. INVOICES & HISTORY ═══════════════
@@ -1922,6 +2345,9 @@ function renderAdminSettings() {
   document.getElementById('adm-b2name').value = currentTenant.b2name || 'Branch 2';
   document.getElementById('adm-b3name').value = currentTenant.b3name || 'Branch 3';
 
+  const codeEl = document.getElementById('activeCustomerUrlCode');
+  if (codeEl) codeEl.textContent = getCustomerPortalUrl(currentTenant.id);
+
   renderLogoPreview();
 }
 
@@ -1983,59 +2409,97 @@ async function saveTenantBranding() {
     updates.logoUrl = currentUploadedLogoBase64;
   }
 
-  try {
-    const res = await fetch(`/api/tenants/${currentTenant.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates)
-    });
-    const data = await res.json();
-    if (data.success) {
-      currentTenant = data.tenant;
-      applyTenantTheme(currentTenant);
-      document.getElementById('hdrTenantName').textContent = currentTenant.name;
-      document.getElementById('hdrTenantType').textContent = currentTenant.businessType || '';
-      
-      const logoContainer = document.getElementById('hdrLogoContainer');
-      if (currentTenant.logoUrl) {
-        logoContainer.innerHTML = `<img src="${currentTenant.logoUrl}" class="hdr-logo-img" alt="logo"/>`;
-      }
-      toast('Brand & Logo updated successfully! ✓', 'ok');
-      await loadTenants();
-    }
-  } catch (err) {
-    toast('Error saving branding', 'err');
+  // 1. Immediately update and save locally
+  currentTenant = { ...currentTenant, ...updates };
+  saveLocalTenant(currentTenant);
+  applyTenantTheme(currentTenant);
+  document.getElementById('hdrTenantName').textContent = currentTenant.name;
+  document.getElementById('hdrTenantType').textContent = currentTenant.businessType || '';
+  
+  const logoContainer = document.getElementById('hdrLogoContainer');
+  if (currentTenant.logoUrl) {
+    logoContainer.innerHTML = `<img src="${currentTenant.logoUrl}" class="hdr-logo-img" alt="logo"/>`;
   }
+  toast('Brand & Logo updated successfully! ✓', 'ok');
+  await loadTenants();
+
+  // 2. Background sync to backend API
+  apiFetch(`/api/tenants/${currentTenant.id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates)
+  }).catch(() => {});
 }
 
-// ═══════════════ DATABASE CONFIG & NEON ═══════════════
+// ═══════════════ DATABASE & CLOUDFLARE CONFIG ═══════════════
 let neonSchemaSqlCache = '';
 
+function saveAndTestApiUrl() {
+  const input = document.getElementById('cfgApiBaseUrl');
+  const statusEl = document.getElementById('apiUrlTestStatus');
+  const val = input.value.trim();
+  if (val) {
+    localStorage.setItem('omni_api_base', val);
+  } else {
+    localStorage.removeItem('omni_api_base');
+  }
+
+  statusEl.textContent = 'Testing connection...';
+  statusEl.style.color = 'var(--text-muted)';
+
+  apiFetch('/api/db-status')
+    .then(st => {
+      if (st && st.storageType) {
+        statusEl.textContent = `✓ Connected (${st.storageType})`;
+        statusEl.style.color = '#16a34a';
+        toast('Connected to backend API server!', 'ok');
+        loadTenants();
+      } else {
+        statusEl.textContent = '⚠ Server responded but invalid format';
+        statusEl.style.color = '#eab308';
+      }
+    })
+    .catch(() => {
+      statusEl.textContent = '✕ Server unreachable (using local storage)';
+      statusEl.style.color = '#ef4444';
+    });
+}
+
+function resetApiUrlToDefault() {
+  localStorage.setItem('omni_api_base', PROD_BACKEND_URL);
+  const input = document.getElementById('cfgApiBaseUrl');
+  if (input) input.value = PROD_BACKEND_URL;
+  toast('Reset to production Cloud Run API server', 'ok');
+  saveAndTestApiUrl();
+}
+
 function openDbConfigModal() {
-  fetch('/api/db-status')
-    .then(r => r.json())
+  const input = document.getElementById('cfgApiBaseUrl');
+  if (input) {
+    input.value = localStorage.getItem('omni_api_base') || getApiBase() || PROD_BACKEND_URL;
+  }
+
+  apiFetch('/api/db-status')
     .then(st => {
       const titleEl = document.getElementById('dbStatusTitle');
       const descEl = document.getElementById('dbStatusDesc');
-      if (titleEl) {
-        titleEl.textContent = st.isPostgresConnected
-          ? '✓ Connected to Neon / PostgreSQL Cloud Database'
-          : '✓ Active Isolated Multi-Tenant Storage Layer (Zero-Config)';
-      }
-      if (descEl) {
-        descEl.textContent = st.isPostgresConnected
-          ? 'Every client workspace has its own row-level tenant boundary with separate products, invoices, and audit trails.'
-          : 'All tenant workspaces, products, and sales are safely partitioned per tenant in backend storage.';
+      if (st && st.isPostgresConnected) {
+        if (titleEl) titleEl.textContent = '✓ Connected to Neon / PostgreSQL Cloud Database';
+        if (descEl) descEl.textContent = 'Every client workspace has its own row-level tenant boundary with separate products, invoices, and audit trails.';
+      } else {
+        if (titleEl) titleEl.textContent = '✓ Multi-Tenant Storage Layer Active (Zero-Config)';
+        if (descEl) descEl.textContent = 'Data is strictly partitioned per client ID across local storage and cloud fallback.';
       }
     })
     .catch(() => {});
 
-  fetch('/api/neon-schema')
-    .then(r => r.text())
+  apiFetch('/api/neon-schema')
     .then(txt => {
-      neonSchemaSqlCache = txt;
-      const el = document.getElementById('neonSchemaPre');
-      if (el) el.textContent = txt;
+      if (typeof txt === 'string' && txt.includes('CREATE TABLE')) {
+        neonSchemaSqlCache = txt;
+        const el = document.getElementById('neonSchemaPre');
+        if (el) el.textContent = txt;
+      }
     })
     .catch(() => {});
 
