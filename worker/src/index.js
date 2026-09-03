@@ -1,11 +1,12 @@
 /**
- * NexusServe POS — Cloudflare Worker (Hono + D1)
- * Drop-in replacement for server.js Express backend.
+ * NexusServe POS — Cloudflare Worker (Hono + Neon Postgres)
+ * Drop-in API for the Pages frontend.
  */
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { getSql, query, queryOne } from './db.js';
 import {
-  hashSecret, verifySecret, hashPins, isHashed, isBcryptHash,
+  hashSecret, verifySecret, hashPins, isHashed,
   signToken, publicTenant, authRequired, requireSuperAdmin,
   requireTenantAccess, requireTenantAdmin
 } from './auth.js';
@@ -18,9 +19,7 @@ import {
 const app = new Hono();
 app.use('*', cors());
 
-// ── Helpers ──
-
-function j(obj, key) {
+function j(obj) {
   if (obj == null) return null;
   if (typeof obj === 'string') { try { return JSON.parse(obj); } catch { return null; } }
   return obj;
@@ -38,7 +37,7 @@ function mapRow(r) {
     logoUrl: r.logo_url, gstRate: Number(r.gst_rate || 0),
     b1name: r.b1name, b2name: r.b2name, b3name: r.b3name,
     pins: j(r.pins) || {},
-    isOnboarded: r.is_onboarded === 1 || r.is_onboarded === true,
+    isOnboarded: r.is_onboarded !== false && r.is_onboarded !== 0,
     branches: j(r.branches) || undefined,
     createdAt: r.created_at
   };
@@ -67,33 +66,27 @@ function safePub(tenant) {
   return publicTenant(tenant);
 }
 
-async function loadTenant(db, tenantId) {
-  const r = await db.prepare('SELECT * FROM tenants WHERE id = ?').bind(tenantId).first();
+async function loadTenant(sql, tenantId) {
+  const r = await queryOne(sql, 'SELECT * FROM tenants WHERE id = $1', [tenantId]);
   return mapRow(r);
 }
 
-function getBranches(db, tenantId, tenant) {
-  return ensureTenantBranches(tenant);
-}
-
-async function persistProduct(db, tenantId, product, branches) {
+async function persistProduct(sql, tenantId, product, branches) {
   const normalized = normalizeProduct({ ...product }, branches);
   const stock = getProductStockMap(normalized, branches.map(b => b.id));
-  await db.prepare(`
+  await query(sql, `
     INSERT INTO products (id, tenant_id, name, cat, price, cost, b1_stock, b2_stock, b3_stock, stock, reorder, unit)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
     ON CONFLICT (id) DO UPDATE SET
-      name = excluded.name, cat = excluded.cat, price = excluded.price, cost = excluded.cost,
-      b1_stock = excluded.b1_stock, b2_stock = excluded.b2_stock, b3_stock = excluded.b3_stock,
-      stock = excluded.stock, reorder = excluded.reorder, unit = excluded.unit
-  `).bind(
+      name = EXCLUDED.name, cat = EXCLUDED.cat, price = EXCLUDED.price, cost = EXCLUDED.cost,
+      b1_stock = EXCLUDED.b1_stock, b2_stock = EXCLUDED.b2_stock, b3_stock = EXCLUDED.b3_stock,
+      stock = EXCLUDED.stock, reorder = EXCLUDED.reorder, unit = EXCLUDED.unit
+  `, [
     normalized.id, tenantId, normalized.name, normalized.cat, normalized.price, normalized.cost || 0,
     stock.b1 || 0, stock.b2 || 0, stock.b3 || 0, JSON.stringify(stock),
     normalized.reorder || 5, normalized.unit || 'pcs'
-  ).run();
+  ]);
 }
-
-// ── Default seed data ──
 
 const DEFAULT_SEED_ITEMS = [
   { name: 'Signature Chocolate Brownie', cat: 'Brownies', price: 95, cost: 45, b1Stock: 35, b2Stock: 20, b3Stock: 15, reorder: 10, unit: 'pcs' },
@@ -104,8 +97,53 @@ const DEFAULT_SEED_ITEMS = [
   { name: 'Iced Caramel Macchiato', cat: 'Beverages', price: 130, cost: 40, b1Stock: 50, b2Stock: 40, b3Stock: 30, reorder: 15, unit: 'cups' }
 ];
 
-async function seedIfEmpty(db) {
-  const count = await db.prepare('SELECT count(*) as cnt FROM tenants').first();
+async function ensureSchema(sql) {
+  const statements = [
+    `CREATE TABLE IF NOT EXISTS tenants (
+      id VARCHAR(100) PRIMARY KEY, name VARCHAR(255) NOT NULL, code VARCHAR(50) UNIQUE,
+      username VARCHAR(100) UNIQUE, password VARCHAR(255), business_type VARCHAR(100),
+      tagline TEXT, currency VARCHAR(10) DEFAULT '$', theme_color VARCHAR(50) DEFAULT '#c8860a',
+      accent_color VARCHAR(50) DEFAULT '#3d1f0a', logo_url TEXT DEFAULT '', gst_rate NUMERIC DEFAULT 5,
+      b1name VARCHAR(100) DEFAULT 'Branch 1', b2name VARCHAR(100) DEFAULT 'Branch 2',
+      b3name VARCHAR(100) DEFAULT 'Branch 3', branches JSONB DEFAULT '[]', pins JSONB DEFAULT '{}',
+      is_onboarded BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS products (
+      id VARCHAR(100) PRIMARY KEY, tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
+      name VARCHAR(255) NOT NULL, cat VARCHAR(100), price NUMERIC NOT NULL, cost NUMERIC DEFAULT 0,
+      b1_stock NUMERIC DEFAULT 0, b2_stock NUMERIC DEFAULT 0, b3_stock NUMERIC DEFAULT 0,
+      stock JSONB DEFAULT '{}', reorder NUMERIC DEFAULT 5, unit VARCHAR(50) DEFAULT 'pcs',
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS sales (
+      id VARCHAR(100) PRIMARY KEY, tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
+      bill_no VARCHAR(100), branch VARCHAR(50), subtotal NUMERIC, tax NUMERIC, discount NUMERIC DEFAULT 0,
+      total NUMERIC, payment_method VARCHAR(50), items JSONB, customer_name VARCHAR(100),
+      customer_phone VARCHAR(50), cashier VARCHAR(100), ts TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS stock_logs (
+      id VARCHAR(100) PRIMARY KEY, tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
+      branch VARCHAR(50), product_name VARCHAR(255), change NUMERIC, reason VARCHAR(255),
+      ts TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS transfers (
+      id VARCHAR(100) PRIMARY KEY, tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
+      product_name VARCHAR(255), from_branch VARCHAR(50), to_branch VARCHAR(50), qty NUMERIC,
+      note TEXT DEFAULT '', status VARCHAR(50) DEFAULT 'completed', ts TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    )`,
+    'CREATE INDEX IF NOT EXISTS idx_products_tenant ON products(tenant_id)',
+    'CREATE INDEX IF NOT EXISTS idx_sales_tenant ON sales(tenant_id)',
+    'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS branches JSONB',
+    'ALTER TABLE products ADD COLUMN IF NOT EXISTS stock JSONB',
+    "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''"
+  ];
+  for (const stmt of statements) {
+    try { await query(sql, stmt); } catch (e) { console.error('Schema stmt failed:', e.message || e); }
+  }
+}
+
+async function seedIfEmpty(sql) {
+  const count = await queryOne(sql, 'SELECT count(*)::int AS cnt FROM tenants');
   if (count && count.cnt > 0) return;
 
   const tenants = [
@@ -122,74 +160,72 @@ async function seedIfEmpty(db) {
     const pins = await hashPins({ admin: '1234', b1: '1111', b2: '2222', b3: '3333' });
     const pw = await hashSecret('pos123');
 
-    await db.prepare(`
+    await query(sql, `
       INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, 1)
-    `).bind(t.id, t.name, t.code, t.code, pw, t.businessType, t.tagline, t.currency, t.themeColor, t.accentColor, t.gstRate, t.b1name, t.b2name, t.b3name, JSON.stringify(branches), JSON.stringify(pins)).run();
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'',$11,$12,$13,$14,$15::jsonb,$16::jsonb,true)
+      ON CONFLICT (id) DO NOTHING
+    `, [t.id, t.name, t.code, t.code, pw, t.businessType, t.tagline, t.currency, t.themeColor, t.accentColor, t.gstRate, t.b1name, t.b2name, t.b3name, JSON.stringify(branches), JSON.stringify(pins)]);
 
     for (let i = 0; i < DEFAULT_SEED_ITEMS.length; i++) {
       const p = DEFAULT_SEED_ITEMS[i];
       const pid = `prod_${t.code}_${i + 1}`;
       const stock = { b1: p.b1Stock, b2: p.b2Stock, b3: p.b3Stock };
-      await db.prepare(`
+      await query(sql, `
         INSERT INTO products (id, tenant_id, name, cat, price, cost, b1_stock, b2_stock, b3_stock, stock, reorder, unit)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(pid, t.id, p.name, p.cat, p.price, p.cost, p.b1Stock, p.b2Stock, p.b3Stock, JSON.stringify(stock), p.reorder, p.unit).run();
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
+        ON CONFLICT (id) DO NOTHING
+      `, [pid, t.id, p.name, p.cat, p.price, p.cost, p.b1Stock, p.b2Stock, p.b3Stock, JSON.stringify(stock), p.reorder, p.unit]);
     }
   }
 }
 
 // ── Routes ──
 
-// Super-Admin Login
 app.post('/api/superadmin/login', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const username = String(body.username || body.email || body.user || '').trim();
   const password = String(body.password || '');
   const superUser = c.env.SUPER_ADMIN_USER || 'admin@amtechnexus.com';
   const superPass = c.env.SUPER_ADMIN_PASSWORD || 'amtech2026';
-  const userOk = username === superUser || username === 'admin';
-  const passOk = password === superPass;
-  if (!userOk || !passOk) return c.json({ error: 'Invalid master super-admin credentials' }, 401);
+  if (!(username === superUser || username === 'admin') || password !== superPass) {
+    return c.json({ error: 'Invalid master super-admin credentials' }, 401);
+  }
   const token = await signToken({ role: 'superadmin', name: 'AMtechnexus Master Control' }, c.env);
   return c.json({ success: true, role: 'superadmin', name: 'AMtechnexus Master Control', token });
 });
 
-// Tenant Login
 app.post('/api/tenant/login', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const { username, password } = body;
   if (!username || !password) return c.json({ error: 'Username and password required' }, 400);
   const u = username.trim().toLowerCase();
-  const db = c.env.DB;
-  const row = await db.prepare('SELECT * FROM tenants WHERE LOWER(username) = ? OR LOWER(code) = ?').bind(u, u).first();
+  const sql = getSql(c.env);
+  const row = await queryOne(sql, 'SELECT * FROM tenants WHERE LOWER(username) = $1 OR LOWER(code) = $1', [u]);
   const found = mapRow(row);
   if (!found || !(await verifySecret(password.trim(), found.password))) {
     return c.json({ error: 'Invalid username or password. Contact AMtechnexus support if needed.' }, 401);
   }
   if (found.password && !isHashed(found.password)) {
     found.password = await hashSecret(password.trim());
-    await db.prepare('UPDATE tenants SET password = ? WHERE id = ?').bind(found.password, found.id).run();
+    await query(sql, 'UPDATE tenants SET password = $1 WHERE id = $2', [found.password, found.id]);
   }
   const token = await signToken({ role: 'tenant', tenantId: found.id, staffRole: 'admin' }, c.env);
   return c.json({ success: true, token, tenant: safePub(found) });
 });
 
-// Public shop profile
 app.get('/api/tenants/:tenantId/public', async (c) => {
-  const tenant = await loadTenant(c.env.DB, c.req.param('tenantId'));
+  const tenant = await loadTenant(getSql(c.env), c.req.param('tenantId'));
   if (!tenant) return c.json({ error: 'Shop not found' }, 404);
   return c.json({ success: true, tenant: safePub(tenant) });
 });
 
-// PIN verify
 app.post('/api/tenants/:tenantId/verify-pin', async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const { role, pin } = body;
   const staffRole = String(role || '').trim();
   if (!pin || String(pin).length < 4) return c.json({ error: 'PIN required' }, 400);
-  const db = c.env.DB;
-  const tenant = await loadTenant(db, c.req.param('tenantId'));
+  const sql = getSql(c.env);
+  const tenant = await loadTenant(sql, c.req.param('tenantId'));
   if (!tenant) return c.json({ error: 'Shop not found' }, 404);
   if (!isValidStaffRole(tenant, staffRole)) return c.json({ error: 'Invalid role' }, 400);
   const pins = tenant.pins || {};
@@ -197,20 +233,17 @@ app.post('/api/tenants/:tenantId/verify-pin', async (c) => {
   if (!(await verifySecret(String(pin), stored))) return c.json({ error: 'Incorrect PIN' }, 401);
   if (stored && !isHashed(stored)) {
     pins[staffRole] = await hashSecret(String(pin));
-    tenant.pins = pins;
-    await db.prepare('UPDATE tenants SET pins = ? WHERE id = ?').bind(JSON.stringify(pins), tenant.id).run();
+    await query(sql, 'UPDATE tenants SET pins = $1::jsonb WHERE id = $2', [JSON.stringify(pins), tenant.id]);
   }
   const token = await signToken({ role: 'tenant', tenantId: tenant.id, staffRole }, c.env);
   return c.json({ success: true, token, staffRole, tenant: safePub(tenant) });
 });
 
-// List tenants (superadmin)
 app.get('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
-  const { results } = await c.env.DB.prepare('SELECT * FROM tenants ORDER BY created_at ASC').all();
-  return c.json({ success: true, tenants: results.map(r => safePub(mapRow(r))) });
+  const rows = await query(getSql(c.env), 'SELECT * FROM tenants ORDER BY created_at ASC');
+  return c.json({ success: true, tenants: rows.map(r => safePub(mapRow(r))) });
 });
 
-// Create tenant (superadmin)
 app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const { name, username, password, businessType, tagline, currency, themeColor, accentColor, logoUrl, gstRate, branches: branchInput, adminPin, isOnboarded } = body;
@@ -236,19 +269,19 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
   const branches = branchDefs.map(({ id, name, sortOrder }) => ({ id, name, sortOrder }));
   const hashedPw = await hashSecret(pass);
   const hashedPins = await hashPins(plainPins);
+  const sql = getSql(c.env);
 
-  const db = c.env.DB;
-  await db.prepare(`
+  await query(sql, `
     INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb,$18)
+  `, [
     cleanId, name.trim(), code, user, hashedPw,
     businessType || 'Food & Retail', tagline || 'Quality Products & Efficient Service',
     currency || '₹', themeColor || '#e4a11b', accentColor || '#111111', logoUrl || '',
     Number(gstRate ?? 5),
     branches[0]?.name || 'Branch 1', branches[1]?.name || 'Branch 2', branches[2]?.name || 'Branch 3',
-    JSON.stringify(branches), JSON.stringify(hashedPins), isOnboarded ? 1 : 0
-  ).run();
+    JSON.stringify(branches), JSON.stringify(hashedPins), !!isOnboarded
+  ]);
 
   for (let i = 0; i < DEFAULT_SEED_ITEMS.length; i++) {
     const p = DEFAULT_SEED_ITEMS[i];
@@ -256,7 +289,7 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
     const stock = {};
     for (const b of branches) stock[b.id] = p[b.id + 'Stock'] != null ? p[b.id + 'Stock'] : (p.b1Stock || 10);
     const item = normalizeProduct({ id: seedId, ...p, stock }, branches);
-    await persistProduct(db, cleanId, item, branches);
+    await persistProduct(sql, cleanId, item, branches);
   }
 
   const newTenant = { id: cleanId, name: name.trim(), code, username: user, businessType: businessType || 'Food & Retail', branches };
@@ -267,17 +300,18 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
   });
 });
 
-// Update tenant
 app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
   const tenantId = c.req.param('tenantId');
-  const db = c.env.DB;
-  const tenant = await loadTenant(db, tenantId);
+  const sql = getSql(c.env);
+  const tenant = await loadTenant(sql, tenantId);
   if (!tenant) return c.json({ error: 'Tenant not found' }, 404);
   const updates = await c.req.json().catch(() => ({}));
 
   if (updates.password) {
     updates.password = isHashed(updates.password) ? updates.password : await hashSecret(updates.password);
-  } else { delete updates.password; }
+  } else {
+    delete updates.password;
+  }
 
   let newBranches = tenant.branches;
   if (Array.isArray(updates.branches)) {
@@ -300,56 +334,49 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
     newPins = await hashPins(updates.pins);
   }
 
-  await db.prepare(`
+  await query(sql, `
     UPDATE tenants SET
-      name = COALESCE(?, name), business_type = COALESCE(?, business_type),
-      tagline = COALESCE(?, tagline), currency = COALESCE(?, currency),
-      theme_color = COALESCE(?, theme_color), accent_color = COALESCE(?, accent_color),
-      logo_url = COALESCE(?, logo_url), gst_rate = COALESCE(?, gst_rate),
-      b1name = COALESCE(?, b1name), b2name = COALESCE(?, b2name), b3name = COALESCE(?, b3name),
-      branches = ?, pins = ?,
-      username = COALESCE(?, username), password = COALESCE(?, password),
-      is_onboarded = COALESCE(?, is_onboarded)
-    WHERE id = ?
-  `).bind(
+      name = COALESCE($1, name), business_type = COALESCE($2, business_type),
+      tagline = COALESCE($3, tagline), currency = COALESCE($4, currency),
+      theme_color = COALESCE($5, theme_color), accent_color = COALESCE($6, accent_color),
+      logo_url = COALESCE($7, logo_url), gst_rate = COALESCE($8, gst_rate),
+      b1name = COALESCE($9, b1name), b2name = COALESCE($10, b2name), b3name = COALESCE($11, b3name),
+      branches = $12::jsonb, pins = $13::jsonb,
+      username = COALESCE($14, username), password = COALESCE($15, password),
+      is_onboarded = COALESCE($16, is_onboarded)
+    WHERE id = $17
+  `, [
     updates.name || null, updates.businessType || null, updates.tagline || null,
     updates.currency || null, updates.themeColor || null, updates.accentColor || null,
     updates.logoUrl || null, updates.gstRate != null ? Number(updates.gstRate) : null,
     newBranches[0]?.name || null, newBranches[1]?.name || null, newBranches[2]?.name || null,
     JSON.stringify(newBranches), JSON.stringify(newPins),
     updates.username || null, updates.password || null,
-    updates.isOnboarded != null ? (updates.isOnboarded ? 1 : 0) : null,
+    updates.isOnboarded != null ? !!updates.isOnboarded : null,
     tenantId
-  ).run();
+  ]);
 
-  const updated = await loadTenant(db, tenantId);
-  return c.json({ success: true, tenant: safePub(updated) });
+  return c.json({ success: true, tenant: safePub(await loadTenant(sql, tenantId)) });
 });
 
-// Delete tenant
 app.delete('/api/tenants/:tenantId', authRequired, requireSuperAdmin, async (c) => {
   const tenantId = c.req.param('tenantId');
-  const db = c.env.DB;
-  await db.prepare('DELETE FROM transfers WHERE tenant_id = ?').bind(tenantId).run();
-  await db.prepare('DELETE FROM stock_logs WHERE tenant_id = ?').bind(tenantId).run();
-  await db.prepare('DELETE FROM sales WHERE tenant_id = ?').bind(tenantId).run();
-  await db.prepare('DELETE FROM products WHERE tenant_id = ?').bind(tenantId).run();
-  await db.prepare('DELETE FROM tenants WHERE id = ?').bind(tenantId).run();
+  const sql = getSql(c.env);
+  await query(sql, 'DELETE FROM tenants WHERE id = $1', [tenantId]);
   return c.json({ success: true });
 });
 
-// Get tenant data bundle
 app.get('/api/tenant/:tenantId/data', authRequired, requireTenantAccess, async (c) => {
   const tenantId = c.req.param('tenantId');
-  const db = c.env.DB;
-  const tenant = await loadTenant(db, tenantId);
+  const sql = getSql(c.env);
+  const tenant = await loadTenant(sql, tenantId);
   if (!tenant) return c.json({ error: 'Client tenant not found' }, 404);
   const branches = tenant.branches;
 
-  const { results: prodRows } = await db.prepare('SELECT * FROM products WHERE tenant_id = ? ORDER BY name ASC').bind(tenantId).all();
+  const prodRows = await query(sql, 'SELECT * FROM products WHERE tenant_id = $1 ORDER BY name ASC', [tenantId]);
   const products = prodRows.map(r => mapProduct(r, branches));
 
-  const { results: saleRows } = await db.prepare('SELECT * FROM sales WHERE tenant_id = ? ORDER BY ts DESC LIMIT 500').bind(tenantId).all();
+  const saleRows = await query(sql, 'SELECT * FROM sales WHERE tenant_id = $1 ORDER BY ts DESC LIMIT 500', [tenantId]);
   const sales = saleRows.map(r => ({
     id: r.id, billNo: r.bill_no, branch: r.branch,
     subtotal: Number(r.subtotal), tax: Number(r.tax), discount: Number(r.discount || 0),
@@ -359,13 +386,13 @@ app.get('/api/tenant/:tenantId/data', authRequired, requireTenantAccess, async (
     cashier: r.cashier, ts: r.ts
   }));
 
-  const { results: logRows } = await db.prepare('SELECT * FROM stock_logs WHERE tenant_id = ? ORDER BY ts DESC LIMIT 500').bind(tenantId).all();
+  const logRows = await query(sql, 'SELECT * FROM stock_logs WHERE tenant_id = $1 ORDER BY ts DESC LIMIT 500', [tenantId]);
   const stockLogs = logRows.map(r => ({
     id: r.id, branch: r.branch, productName: r.product_name,
     change: Number(r.change), reason: r.reason, ts: r.ts
   }));
 
-  const { results: trRows } = await db.prepare('SELECT * FROM transfers WHERE tenant_id = ? ORDER BY ts DESC LIMIT 500').bind(tenantId).all();
+  const trRows = await query(sql, 'SELECT * FROM transfers WHERE tenant_id = $1 ORDER BY ts DESC LIMIT 500', [tenantId]);
   const transfers = trRows.map(r => ({
     id: r.id, productName: r.product_name,
     fromBranch: r.from_branch, toBranch: r.to_branch,
@@ -375,28 +402,28 @@ app.get('/api/tenant/:tenantId/data', authRequired, requireTenantAccess, async (
   return c.json({ success: true, tenant: safePub(tenant), branches, products, sales, stockLogs, transfers });
 });
 
-// Products CRUD
 app.post('/api/tenant/:tenantId/products', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
   const tenantId = c.req.param('tenantId');
-  const db = c.env.DB;
-  const tenant = await loadTenant(db, tenantId);
+  const sql = getSql(c.env);
+  const tenant = await loadTenant(sql, tenantId);
   const branches = tenant ? tenant.branches : normalizeBranches({});
   const body = await c.req.json().catch(() => ({}));
   const newId = body.id || `prod_${crypto.randomUUID().slice(0, 8)}`;
   const stock = body.stock && typeof body.stock === 'object' ? body.stock : getProductStockMap(body, branches.map(b => b.id));
   const item = normalizeProduct({ ...body, id: newId, stock }, branches);
-  await persistProduct(db, tenantId, item, branches);
+  await persistProduct(sql, tenantId, item, branches);
   return c.json({ success: true, product: item });
 });
 
 app.put('/api/tenant/:tenantId/products/:id', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
-  const { tenantId, id } = { tenantId: c.req.param('tenantId'), id: c.req.param('id') };
-  const db = c.env.DB;
-  const tenant = await loadTenant(db, tenantId);
+  const tenantId = c.req.param('tenantId');
+  const id = c.req.param('id');
+  const sql = getSql(c.env);
+  const tenant = await loadTenant(sql, tenantId);
   const branches = tenant ? tenant.branches : normalizeBranches({});
   const updates = await c.req.json().catch(() => ({}));
 
-  const existing = await db.prepare('SELECT * FROM products WHERE tenant_id = ? AND id = ?').bind(tenantId, id).first();
+  const existing = await queryOne(sql, 'SELECT * FROM products WHERE tenant_id = $1 AND id = $2', [tenantId, id]);
   const current = existing ? mapProduct(existing, branches) : { id };
   const merged = normalizeProduct({ ...current, ...updates, id }, branches);
   if (updates.stock) { for (const [bid, qty] of Object.entries(updates.stock)) setStock(merged, bid, qty); }
@@ -404,22 +431,20 @@ app.put('/api/tenant/:tenantId/products/:id', authRequired, requireTenantAccess,
     const lk = b.id + 'Stock';
     if (updates[lk] != null) setStock(merged, b.id, updates[lk]);
   }
-  await persistProduct(db, tenantId, merged, branches);
+  await persistProduct(sql, tenantId, merged, branches);
   return c.json({ success: true, product: merged });
 });
 
 app.delete('/api/tenant/:tenantId/products/:id', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
-  const db = c.env.DB;
-  await db.prepare('DELETE FROM products WHERE tenant_id = ? AND id = ?').bind(c.req.param('tenantId'), c.req.param('id')).run();
+  await query(getSql(c.env), 'DELETE FROM products WHERE tenant_id = $1 AND id = $2', [c.req.param('tenantId'), c.req.param('id')]);
   return c.json({ success: true });
 });
 
-// Sales
 app.post('/api/tenant/:tenantId/sales', authRequired, requireTenantAccess, async (c) => {
   const tenantId = c.req.param('tenantId');
-  const db = c.env.DB;
+  const sql = getSql(c.env);
   const sale = await c.req.json().catch(() => ({}));
-  const tenant = await loadTenant(db, tenantId);
+  const tenant = await loadTenant(sql, tenantId);
   const branches = tenant ? tenant.branches : normalizeBranches({});
   const saleId = sale.id || `sale_${Date.now()}`;
   let branchId = sale.branch || (branches[0]?.id) || 'b1';
@@ -442,27 +467,27 @@ app.post('/api/tenant/:tenantId/sales', authRequired, requireTenantAccess, async
     ts: new Date().toISOString()
   };
 
-  await db.prepare(`
+  await query(sql, `
     INSERT INTO sales (id, tenant_id, bill_no, branch, subtotal, tax, discount, total, payment_method, items, customer_name, customer_phone, cashier, ts)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)
     ON CONFLICT (id) DO NOTHING
-  `).bind(
+  `, [
     saleId, tenantId, newSale.billNo || null, newSale.branch,
     newSale.subtotal || 0, newSale.tax || 0, newSale.discount || 0, newSale.total || 0,
     newSale.payMethod, JSON.stringify(newSale.items || []),
     newSale.customerName, newSale.customerPhone, newSale.cashier, newSale.ts
-  ).run();
+  ]);
 
   const touched = [];
   if (Array.isArray(newSale.items)) {
     for (const cartItem of newSale.items) {
       const pid = cartItem.id || cartItem.productId;
-      const row = await db.prepare('SELECT * FROM products WHERE tenant_id = ? AND id = ?').bind(tenantId, pid).first();
+      const row = await queryOne(sql, 'SELECT * FROM products WHERE tenant_id = $1 AND id = $2', [tenantId, pid]);
       if (row) {
         const prod = mapProduct(row, branches);
         applyStockDelta(prod, branchId, -(cartItem.qty || 1));
         normalizeProduct(prod, branches);
-        await persistProduct(db, tenantId, prod, branches);
+        await persistProduct(sql, tenantId, prod, branches);
         touched.push(prod);
       }
     }
@@ -470,24 +495,22 @@ app.post('/api/tenant/:tenantId/sales', authRequired, requireTenantAccess, async
   return c.json({ success: true, sale: newSale, products: touched });
 });
 
-// Stock logs
 app.post('/api/tenant/:tenantId/stock-log', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
   const tenantId = c.req.param('tenantId');
   const body = await c.req.json().catch(() => ({}));
   const log = { id: `log_${Date.now()}`, ...body, ts: new Date().toISOString() };
-  await c.env.DB.prepare(`
+  await query(getSql(c.env), `
     INSERT INTO stock_logs (id, tenant_id, branch, product_name, change, reason, ts)
-    VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING
-  `).bind(log.id, tenantId, log.branch || null, log.productName || log.product_name || '', log.change || 0, log.reason || '', log.ts).run();
+    VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO NOTHING
+  `, [log.id, tenantId, log.branch || null, log.productName || log.product_name || '', log.change || 0, log.reason || '', log.ts]);
   return c.json({ success: true, log });
 });
 
-// Transfers
 app.post('/api/tenant/:tenantId/transfers', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
   const tenantId = c.req.param('tenantId');
-  const db = c.env.DB;
+  const sql = getSql(c.env);
   const body = await c.req.json().catch(() => ({}));
-  const tenant = await loadTenant(db, tenantId);
+  const tenant = await loadTenant(sql, tenantId);
   const branches = tenant ? tenant.branches : normalizeBranches({});
   const fromBranch = body.fromBranch || body.from;
   const toBranch = body.toBranch || body.to;
@@ -497,7 +520,7 @@ app.post('/api/tenant/:tenantId/transfers', authRequired, requireTenantAccess, r
   if (!fromBranch || !toBranch || fromBranch === toBranch) return c.json({ error: 'fromBranch and toBranch must differ' }, 400);
   if (!productId || qty <= 0) return c.json({ error: 'productId and positive qty required' }, 400);
 
-  const row = await db.prepare('SELECT * FROM products WHERE tenant_id = ? AND id = ?').bind(tenantId, productId).first();
+  const row = await queryOne(sql, 'SELECT * FROM products WHERE tenant_id = $1 AND id = $2', [tenantId, productId]);
   if (!row) return c.json({ error: 'Product not found' }, 404);
   const prod = mapProduct(row, branches);
 
@@ -507,37 +530,56 @@ app.post('/api/tenant/:tenantId/transfers', authRequired, requireTenantAccess, r
   applyStockDelta(prod, fromBranch, -qty);
   applyStockDelta(prod, toBranch, qty);
   normalizeProduct(prod, branches);
-  await persistProduct(db, tenantId, prod, branches);
+  await persistProduct(sql, tenantId, prod, branches);
 
   const transfer = {
     id: `tr_${Date.now()}`, productId: prod.id, productName: prod.name,
     fromBranch, toBranch, qty, note: body.note || '', ts: new Date().toISOString()
   };
-  await db.prepare(`
+  await query(sql, `
     INSERT INTO transfers (id, tenant_id, product_name, from_branch, to_branch, qty, note, ts)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (id) DO NOTHING
-  `).bind(transfer.id, tenantId, transfer.productName, transfer.fromBranch, transfer.toBranch, transfer.qty, transfer.note, transfer.ts).run();
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO NOTHING
+  `, [transfer.id, tenantId, transfer.productName, transfer.fromBranch, transfer.toBranch, transfer.qty, transfer.note, transfer.ts]);
 
   return c.json({ success: true, transfer, product: prod });
 });
 
-// DB status
-app.get('/api/db-status', (c) => {
-  return c.json({
-    isPostgresConnected: false,
-    databaseUrlSet: true,
-    storageType: 'Cloudflare D1 (SQLite at Edge)',
-    totalTenants: -1
-  });
+app.get('/api/db-status', async (c) => {
+  try {
+    const sql = getSql(c.env);
+    const row = await queryOne(sql, 'SELECT count(*)::int AS cnt FROM tenants');
+    return c.json({
+      isPostgresConnected: true,
+      databaseUrlSet: !!c.env.DATABASE_URL,
+      storageType: 'Neon PostgreSQL',
+      totalTenants: row?.cnt ?? 0
+    });
+  } catch (e) {
+    return c.json({
+      isPostgresConnected: false,
+      databaseUrlSet: !!c.env.DATABASE_URL,
+      storageType: 'Neon PostgreSQL (unreachable)',
+      error: String(e.message || e)
+    }, 503);
+  }
 });
 
-// Health
-app.get('/api/health', (c) => c.json({ ok: true, runtime: 'cloudflare-workers' }));
+app.get('/api/health', (c) => c.json({ ok: true, runtime: 'cloudflare-workers', db: 'neon' }));
 
-// Export
+let bootstrapped = false;
+
 export default {
   async fetch(request, env, ctx) {
-    try { await seedIfEmpty(env.DB); } catch (e) { console.error('Seed error:', e); }
+    if (!bootstrapped && env.DATABASE_URL) {
+      try {
+        const sql = getSql(env);
+        await ensureSchema(sql);
+        await seedIfEmpty(sql);
+        bootstrapped = true;
+      } catch (e) {
+        console.error('Bootstrap error:', e);
+      }
+    }
     return app.fetch(request, env, ctx);
   }
 };

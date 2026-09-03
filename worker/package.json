@@ -5,12 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "d1:create": "wrangler d1 create nexusserve-db",
-    "d1:migrate": "wrangler d1 migrations apply nexusserve-db --local",
-    "d1:migrate:prod": "wrangler d1 migrations apply nexusserve-db --remote"
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^0.10.4",
     "hono": "^4.6.0",
     "jose": "^5.9.0"
   }

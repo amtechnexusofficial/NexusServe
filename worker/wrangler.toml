@@ -3,12 +3,15 @@ main = "src/index.js"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+# Non-secret defaults (override secrets via: wrangler secret put ...)
 [vars]
-AUTH_SECRET = "change-me-in-dashboard"
 SUPER_ADMIN_USER = "admin@amtechnexus.com"
 SUPER_ADMIN_PASSWORD = "amtech2026"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "nexusserve-db"
-database_id = "placeholder-create-via-wrangler-d1-create"
+# Required secrets (set in Cloudflare dashboard or CLI):
+#   wrangler secret put DATABASE_URL   # Neon connection string
+#   wrangler secret put AUTH_SECRET    # JWT signing secret
+#
+# For local dev, create worker/.dev.vars:
+#   DATABASE_URL=postgresql://...
+#   AUTH_SECRET=dev-secret
