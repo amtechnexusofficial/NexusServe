@@ -178,13 +178,13 @@
         "cat": "Brownies",
         "price": 95,
         "cost": 45,
-        "b1Stock": 33,
+        "b1Stock": 32,
         "b2Stock": 20,
         "b3Stock": 15,
         "reorder": 10,
         "unit": "pcs",
         "stock": {
-          "b1": 33,
+          "b1": 32,
           "b2": 20,
           "b3": 15,
           "b4": 1
@@ -553,6 +553,30 @@
     "test-bakery-5081": [],
     "artisan-coffee-roasters-6771": [],
     "nb-cakes": [
+      {
+        "id": "sale_quality_1",
+        "billNo": "INV-Q1",
+        "branch": "b1",
+        "subtotal": 95,
+        "tax": 4.75,
+        "total": 99.75,
+        "payMethod": "card",
+        "items": [
+          {
+            "id": "prod_1",
+            "productId": "prod_1",
+            "name": "x",
+            "price": 95,
+            "qty": 1
+          }
+        ],
+        "customerName": "Q",
+        "cashier": "admin",
+        "customerPhone": "",
+        "custName": "Q",
+        "custPhone": "",
+        "ts": "2026-09-03T11:19:04.470Z"
+      },
       {
         "billNo": "SMOKE-1788432506242",
         "branch": "b4",

@@ -976,7 +976,17 @@ app.post('/api/tenant/:tenantId/sales', authRequired, requireTenantAccess, async
   const sale = req.body || {};
   const branches = getTenantBranchesOrDefault(tenantId);
   const saleId = sale.id || 'sale_' + Date.now();
-  const branchId = sale.branch || (branches[0] && branches[0].id) || 'b1';
+  let branchId = sale.branch || (branches[0] && branches[0].id) || 'b1';
+
+  // Branch cashiers may only post sales to their own store
+  const staffRole = req.user?.staffRole;
+  if (req.user?.role === 'tenant' && staffRole && staffRole !== 'admin') {
+    if (sale.branch && sale.branch !== staffRole) {
+      return res.status(403).json({ error: 'Cashiers can only sell from their own store' });
+    }
+    branchId = staffRole;
+  }
+
   const newSale = {
     ...sale,
     id: saleId,
@@ -986,6 +996,7 @@ app.post('/api/tenant/:tenantId/sales', authRequired, requireTenantAccess, async
     custName: sale.customerName || sale.custName || '',
     custPhone: sale.customerPhone || sale.custPhone || '',
     payMethod: sale.payMethod || sale.paymentMethod || 'cash',
+    cashier: sale.cashier || staffRole || 'admin',
     ts: new Date().toISOString()
   };
 

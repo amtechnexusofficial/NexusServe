@@ -429,6 +429,17 @@ input:focus, select:focus, textarea:focus {
   #header { padding: 0 10px; gap: 6px; }
   .hdr-clock, .hdr-db-badge, .hdr-tenant-switch { display: none; }
 }
+@media print {
+  body * { visibility: hidden !important; }
+  #invoiceModal, #invoiceModal * { visibility: visible !important; }
+  #invoiceModal {
+    position: fixed !important; inset: 0 !important; background: #fff !important;
+    display: block !important; z-index: 99999 !important; padding: 0 !important;
+  }
+  #invoiceModal .modal { box-shadow: none !important; border: none !important; max-width: 100% !important; margin: 0 !important; }
+  #invoiceModalFoot, #invoiceModal .modal-close, #invoiceModal .modal-hdr { display: none !important; }
+  #invoiceModalBody { padding: 12px !important; }
+}
 </style>
 </head>
 <body>
@@ -437,7 +448,7 @@ input:focus, select:focus, textarea:focus {
 <div id="portalScreen">
   <div class="portal-topbar">
     <div class="portal-wordmark">NexusServe<small>AMtechnexus billing</small></div>
-    <button class="btn btn-sm" onclick="openDbConfigModal()">Database</button>
+    <button class="btn btn-sm" id="btnPortalDbConfig" onclick="openDbConfigModal()">Database</button>
   </div>
 
   <div class="portal-card" id="portalCard">
@@ -452,14 +463,13 @@ input:focus, select:focus, textarea:focus {
       <div style="padding:16px 0;display:flex;flex-direction:column;gap:12px">
         <div class="form-group">
           <label>Email</label>
-          <input type="text" id="saUser" autocomplete="username" placeholder="admin@amtechnexus.com" value="admin@amtechnexus.com"/>
+          <input type="text" id="saUser" autocomplete="username" placeholder="Email"/>
         </div>
         <div class="form-group">
           <label>Password</label>
           <input type="password" id="saPass" autocomplete="current-password" placeholder="Password" onkeydown="if(event.key==='Enter') submitSuperAdminLogin()"/>
         </div>
         <button class="btn btn-primary" id="btnSaLogin" style="justify-content:center;width:100%" onclick="submitSuperAdminLogin()">Sign in</button>
-        <p style="font-size:.78rem;color:var(--text-muted);margin:0">Demo: admin@amtechnexus.com · amtech2026</p>
         <p id="saLoginError" style="display:none;color:var(--red);font-size:.82rem;font-weight:650"></p>
       </div>
     </div>
@@ -501,28 +511,20 @@ input:focus, select:focus, textarea:focus {
         <p class="portal-subtitle" id="activeTenantTagline">Point of Sale</p>
       </div>
       <div>
-        <button class="btn btn-primary" style="justify-content:center;padding:10px 14px;margin:12px 0 4px;width:100%" onclick="selectRole('admin')">
-          Continue as admin
-        </button>
-
-        <p style="font-size:.78rem;font-weight:650;color:var(--text-muted);margin:10px 0 0">Staff login</p>
+        <p style="font-size:.78rem;font-weight:650;color:var(--text-muted);margin:10px 0 0">Choose role</p>
         <div class="role-row" id="roleRow"></div>
       </div>
-      <div class="portal-footer">
+      <div class="portal-footer" id="roleSelectFooter">
         <button class="btn btn-outline btn-sm" id="btnBackToMaster" onclick="backToTenantSelect()">All shops</button>
-        <button class="btn btn-outline btn-sm" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL for this customer">Copy shop link</button>
+        <button class="btn btn-outline btn-sm" id="btnCopyShopLink" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL for this customer">Copy shop link</button>
       </div>
     </div>
 
     <!-- Step 3: PIN Pad Entry -->
     <div id="pinEntryView" style="display:none;padding:20px 0;text-align:center">
       <div class="role-badge-pill" id="pinRolePill">Admin PIN</div>
-      <h2 class="page-title" style="margin-bottom:6px">PIN</h2>
-      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">Demo: <span id="hintPin" style="font-family:var(--num);font-weight:650;font-variant-numeric:tabular-nums">1234</span></p>
-
-      <button class="btn btn-primary btn-sm" style="width:100%;max-width:240px;margin:0 auto 14px;justify-content:center" onclick="quickDemoPin()">
-        Fill demo PIN
-      </button>
+      <h2 class="page-title" style="margin-bottom:6px">Enter PIN</h2>
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:16px">Staff PIN for this role</p>
 
       <div class="pin-dots">
         <div class="pin-dot" id="d0"></div>
@@ -555,7 +557,7 @@ input:focus, select:focus, textarea:focus {
 <!-- ═══════════════════════════════ APPLICATION SCREEN ═══════════════════════════════ -->
 <div id="appScreen">
   <header id="header">
-    <div class="hdr-brand-box" onclick="switchTab('admin')">
+    <div class="hdr-brand-box" onclick="if(!isBranchCashier()) switchTab('admin')">
       <div id="hdrLogoContainer"></div>
       <div class="hdr-logo-txt">
         <span id="hdrTenantName">NB Cakes &amp; Desserts</span>
@@ -563,10 +565,10 @@ input:focus, select:focus, textarea:focus {
       </div>
     </div>
 
-    <button class="hdr-tenant-switch" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL to share with client">
+    <button class="hdr-tenant-switch" id="btnHdrCustomerLink" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL to share with client">
       Customer link
     </button>
-    <button class="hdr-tenant-switch" onclick="promptSwitchTenant()">
+    <button class="hdr-tenant-switch" id="btnHdrSwitchClient" onclick="promptSwitchTenant()">
       Switch client
     </button>
 
@@ -649,7 +651,7 @@ input:focus, select:focus, textarea:focus {
       <div id="billingWrap">
         <div>
           <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-            <input type="text" id="menuSearch" placeholder="Search item or barcode…" oninput="renderMenuGrid()" style="flex:1;min-width:200px"/>
+            <input type="text" id="menuSearch" placeholder="Search items…" oninput="renderMenuGrid()" style="flex:1;min-width:200px"/>
             <select id="billingBranchSelect" onchange="changeBillingBranch(this.value)" style="width:200px"></select>
           </div>
 
@@ -671,6 +673,12 @@ input:focus, select:focus, textarea:focus {
           <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
             <input type="text" id="custName" placeholder="Customer name (optional)"/>
             <input type="text" id="custPhone" placeholder="Phone (optional)"/>
+            <select id="payMethod" style="width:100%">
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
+              <option value="upi">UPI</option>
+              <option value="other">Other</option>
+            </select>
           </div>
           <div class="cart-items" id="cartItems">
             <div class="cart-empty">Click items to add to order</div>
@@ -679,8 +687,8 @@ input:focus, select:focus, textarea:focus {
             <div class="cart-row"><span>Subtotal</span><span id="cartSub">0.00</span></div>
             <div class="cart-row"><span id="cartTaxLbl">Tax / GST (5%)</span><span id="cartTax">0.00</span></div>
             <div class="cart-row total-row"><span>TOTAL</span><span id="cartTotal">0.00</span></div>
-            <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px;padding:11px;font-size:.95rem" onclick="completeSale()">
-              Charge &amp; print
+            <button class="btn btn-primary" id="btnCompleteSale" style="width:100%;justify-content:center;margin-top:12px;padding:11px;font-size:.95rem" onclick="completeSale()">
+              Complete sale
             </button>
           </div>
         </div>
@@ -761,6 +769,7 @@ input:focus, select:focus, textarea:focus {
               <label>Transfer Quantity</label>
               <input type="number" id="tfQty" min="1" placeholder="Enter quantity" oninput="updateTransferPreview()"/>
             </div>
+            <div id="tfPreview" style="font-size:.85rem;color:var(--text-muted);min-height:1.2em"></div>
             <div class="form-group">
               <label>Notes / Reason</label>
               <input type="text" id="tfNote" placeholder="e.g. Daily restocking"/>
@@ -1103,7 +1112,7 @@ input:focus, select:focus, textarea:focus {
     <div class="modal-body" id="invoiceModalBody"></div>
     <div class="modal-footer" id="invoiceModalFoot">
       <button class="btn btn-outline" onclick="closeModal('invoiceModal')">Close</button>
-      <button class="btn btn-primary" onclick="window.print()">🖨 Print Invoice</button>
+      <button class="btn btn-primary" onclick="printInvoice()">Print receipt</button>
     </div>
   </div>
 </div>
@@ -1356,19 +1365,117 @@ function branchName(branchId, tenant = currentTenant) {
 function fillBranchSelect(selectEl, selected) {
   if (!selectEl) return;
   const branches = getBranches();
-  const cur = selected || selectEl.value || (branches[0] && branches[0].id);
-  selectEl.innerHTML = branches.map(b =>
+  const locked = isBranchCashier();
+  const cur = locked
+    ? currentRole
+    : (selected || selectEl.value || (branches[0] && branches[0].id));
+  const list = locked ? branches.filter(b => b.id === currentRole) : branches;
+  selectEl.innerHTML = (list.length ? list : branches).map(b =>
     `<option value="${b.id}" ${b.id === cur ? 'selected' : ''}>${b.name}</option>`
   ).join('');
+  selectEl.disabled = locked;
+  selectEl.title = locked ? 'Locked to your store' : '';
+}
+
+function isBranchCashier() {
+  return !!(currentRole && currentRole !== 'admin');
+}
+
+function getActiveBranchId() {
+  if (isBranchCashier()) return currentRole;
+  const sel = document.getElementById('billingBranchSelect')?.value;
+  if (sel) return sel;
+  const branches = getBranches();
+  return (branches[0] && branches[0].id) || 'b1';
 }
 
 function changeBillingBranch(val) {
+  if (isBranchCashier() && val !== currentRole) {
+    const sel = document.getElementById('billingBranchSelect');
+    if (sel) sel.value = currentRole;
+    toast('You can only sell from your store', 'warn');
+    return;
+  }
+  clearCart();
   renderMenuGrid();
   renderCart();
 }
 
 
+function getWorkspaceParam() {
+  const params = new URLSearchParams(window.location.search);
+  return params.get('workspace') || params.get('shop') || params.get('tenant') || params.get('t') || '';
+}
+
+const SHOP_LOCK_KEY = 'omni_shop_lock';
+
+function lockToShop(tenantId) {
+  if (!tenantId) return;
+  isDirectCustomerView = true;
+  try { sessionStorage.setItem(SHOP_LOCK_KEY, tenantId); } catch (e) {}
+}
+
+function getLockedShopId() {
+  try { return sessionStorage.getItem(SHOP_LOCK_KEY) || ''; } catch (e) { return ''; }
+}
+
+function isShopLinkMode() {
+  return isDirectCustomerView || !!getWorkspaceParam() || !!getLockedShopId();
+}
+
+/** Hide master-console controls when opened via shop link */
+function applyShopLinkChrome() {
+  const shop = isShopLinkMode();
+  isDirectCustomerView = shop;
+
+  const hide = (id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = shop ? 'none' : '';
+  };
+  hide('btnBackToMaster');
+  hide('btnCopyShopLink');
+  hide('btnPortalDbConfig');
+  hide('btnHdrCustomerLink');
+  hide('btnHdrSwitchClient');
+
+  const footer = document.getElementById('roleSelectFooter');
+  if (footer) footer.style.display = shop ? 'none' : 'flex';
+
+  const pill = document.getElementById('customerPortalPill');
+  if (pill) pill.style.display = shop ? 'block' : 'none';
+
+  // Never show master login / shop picker on a shop link
+  if (shop) {
+    const sa = document.getElementById('superAdminLoginView');
+    const ts = document.getElementById('tenantSelectView');
+    if (sa) sa.style.display = 'none';
+    if (ts) ts.style.display = 'none';
+  }
+}
+
+function showShopNotFound(target) {
+  isDirectCustomerView = true;
+  applyShopLinkChrome();
+  document.getElementById('portalScreen').style.display = 'flex';
+  document.getElementById('appScreen').classList.remove('show');
+  document.getElementById('superAdminLoginView').style.display = 'none';
+  document.getElementById('tenantSelectView').style.display = 'none';
+  document.getElementById('pinEntryView').style.display = 'none';
+  const role = document.getElementById('roleSelectView');
+  role.style.display = 'block';
+  document.getElementById('activeTenantName').textContent = 'Shop not found';
+  document.getElementById('activeTenantTagline').textContent =
+    `No workspace matches “${target}”. Check the link with your provider.`;
+  document.getElementById('activeTenantLogoBox').innerHTML = '';
+  const row = document.getElementById('roleRow');
+  if (row) row.innerHTML = '';
+}
+
 function showSuperAdminLogin() {
+  if (isShopLinkMode()) {
+    if (currentTenant) chooseTenant(currentTenant.id, true);
+    return;
+  }
   const sa = document.getElementById('superAdminLoginView');
   const ts = document.getElementById('tenantSelectView');
   if (sa) sa.style.display = 'block';
@@ -1377,15 +1484,21 @@ function showSuperAdminLogin() {
   const ps = document.getElementById('pinEntryView');
   if (rs) rs.style.display = 'none';
   if (ps) ps.style.display = 'none';
+  applyShopLinkChrome();
 }
 
 function showTenantSelect() {
+  if (isShopLinkMode()) {
+    if (currentTenant) chooseTenant(currentTenant.id, true);
+    return;
+  }
   const sa = document.getElementById('superAdminLoginView');
   const ts = document.getElementById('tenantSelectView');
   if (sa) sa.style.display = 'none';
   if (ts) ts.style.display = 'block';
   document.getElementById('roleSelectView').style.display = 'none';
   document.getElementById('pinEntryView').style.display = 'none';
+  applyShopLinkChrome();
 }
 
 async function submitSuperAdminLogin() {
@@ -1397,7 +1510,7 @@ async function submitSuperAdminLogin() {
   if (!username || !password) {
     if (errEl) {
       errEl.style.display = 'block';
-      errEl.textContent = 'Enter email and password (demo: amtech2026)';
+      errEl.textContent = 'Enter email and password';
     }
     return;
   }
@@ -1600,14 +1713,16 @@ async function loadTenants(opts = {}) {
   const { skipRouting = false, requireAuth = true } = opts;
 
   if (!skipRouting) {
-    const params = new URLSearchParams(window.location.search);
-    const target = params.get('workspace') || params.get('shop') || params.get('tenant') || params.get('t');
+    const target = getWorkspaceParam() || getLockedShopId();
     if (target) {
-      isDirectCustomerView = true;
+      lockToShop(target);
+      applyShopLinkChrome();
       document.getElementById('superAdminLoginView').style.display = 'none';
+      document.getElementById('tenantSelectView').style.display = 'none';
       const pub = await apiFetch(`/api/tenants/${encodeURIComponent(target)}/public`);
       if (pub && pub.success && pub.tenant) {
         currentTenant = pub.tenant;
+        lockToShop(pub.tenant.id);
         const idx = tenants.findIndex(x => x.id === pub.tenant.id);
         if (idx >= 0) tenants[idx] = pub.tenant; else tenants.push(pub.tenant);
         saveLocalTenant(pub.tenant);
@@ -1616,9 +1731,22 @@ async function loadTenants(opts = {}) {
       }
       tenants = getLocalTenants();
       if (handleInitialRouting()) return;
-      toast('Shop not found', 'err');
+      const localHit = tenants.find(t =>
+        t.id.toLowerCase() === target.toLowerCase() ||
+        (t.code && t.code.toLowerCase() === target.toLowerCase())
+      );
+      if (localHit) {
+        chooseTenant(localHit.id, true);
+        return;
+      }
+      showShopNotFound(target);
       return;
     }
+  }
+
+  if (isShopLinkMode()) {
+    if (currentTenant) chooseTenant(currentTenant.id, true);
+    return;
   }
 
   if (requireAuth && !getAuthToken()) {
@@ -1672,7 +1800,7 @@ function handleInitialRouting() {
       (t.username && t.username.toLowerCase() === target.toLowerCase())
     );
     if (matched) {
-      isDirectCustomerView = true;
+      lockToShop(matched.id);
       chooseTenant(matched.id, true);
       return true;
     }
@@ -1725,34 +1853,18 @@ function quickLaunchTenant(tenantId) {
   chooseTenant(tenantId);
 }
 
-function quickDemoPin() {
-  const demos = { admin: '1234', b1: '1111', b2: '2222', b3: '3333' };
-  const branches = getBranches();
-  branches.forEach((b, i) => {
-    if (!demos[b.id]) demos[b.id] = String(1111 * (i + 1)).slice(0, 4);
-  });
-  pinInput = demos[pinRole] || '1234';
-  updateDots();
-  setTimeout(() => verifyPin(), 150);
-}
-
 function chooseTenant(tenantId, isDirect = false) {
   const t = tenants.find(x => x.id === tenantId);
   if (!t) return;
   currentTenant = t;
   applyTenantTheme(t);
 
-  const pill = document.getElementById('customerPortalPill');
-  const backBtn = document.getElementById('btnBackToMaster');
-  if (isDirect || isDirectCustomerView) {
-    if (pill) pill.style.display = 'block';
-    if (backBtn) backBtn.textContent = 'Master portal';
-  } else {
-    if (pill) pill.style.display = 'none';
-    if (backBtn) backBtn.textContent = 'Switch workspace';
-  }
+  if (isDirect) isDirectCustomerView = true;
+  if (isDirect || isShopLinkMode()) lockToShop(t.id);
+  applyShopLinkChrome();
 
   document.getElementById('superAdminLoginView').style.display = 'none';
+  document.getElementById('tenantSelectView').style.display = 'none';
   document.getElementById('activeTenantName').textContent = t.name;
   document.getElementById('activeTenantTagline').textContent = t.tagline || t.businessType || 'POS & Inventory';
   
@@ -1765,7 +1877,6 @@ function chooseTenant(tenantId, isDirect = false) {
 
   renderRoleButtons();
 
-  document.getElementById('tenantSelectView').style.display = 'none';
   document.getElementById('roleSelectView').style.display = 'block';
   document.getElementById('pinEntryView').style.display = 'none';
 }
@@ -1792,8 +1903,9 @@ function renderRoleButtons() {
 
 
 function backToTenantSelect() {
-  if (isDirectCustomerView) {
-    window.location.href = window.location.pathname;
+  // Shop-link users stay on this shop only — never open master console
+  if (isShopLinkMode()) {
+    if (currentTenant) chooseTenant(currentTenant.id, true);
     return;
   }
   document.getElementById('roleSelectView').style.display = 'none';
@@ -1897,13 +2009,6 @@ function selectRole(role) {
   updateDots();
   document.getElementById('pinRolePill').textContent =
     role === 'admin' ? 'Administrator' : branchName(role);
-
-  const demos = { admin: '1234', b1: '1111', b2: '2222', b3: '3333' };
-  getBranches().forEach((b, i) => {
-    if (!demos[b.id]) demos[b.id] = String(1111 * (i + 1)).slice(0, 4);
-  });
-  document.getElementById('hintPin').textContent = demos[role] || '••••';
-
   document.getElementById('roleSelectView').style.display = 'none';
   document.getElementById('pinEntryView').style.display = 'block';
 }
@@ -1932,6 +2037,8 @@ function updateDots() {
 
 async function verifyPin() {
   if (!currentTenant) return;
+  const intentionalOffline = isOfflineToken(getSuperToken()) || isOfflineToken(getAuthToken()) || (isStaticHost() && !getApiBase());
+
   const data = await apiFetch(`/api/tenants/${encodeURIComponent(currentTenant.id)}/verify-pin`, {
     method: 'POST',
     body: JSON.stringify({ role: pinRole, pin: pinInput })
@@ -1944,31 +2051,40 @@ async function verifyPin() {
     return;
   }
 
-  // Offline / browser-local PIN check
+  // Live API rejected this PIN — do not fall back to demo codes
+  if (data && (data.status === 401 || data.error)) {
+    toast(data.error || 'Incorrect PIN', 'err');
+    pinInput = '';
+    updateDots();
+    return;
+  }
+
+  // Offline / browser-local only
+  if (!intentionalOffline && data !== null) {
+    toast((data && data.error) || 'PIN verification failed', 'err');
+    pinInput = '';
+    updateDots();
+    return;
+  }
+
   const demos = { admin: '1234', b1: '1111', b2: '2222', b3: '3333' };
   getBranches().forEach((b, i) => {
     if (!demos[b.id]) demos[b.id] = String(1111 * (i + 1)).slice(0, 4);
   });
   const localPins = (currentTenant && currentTenant.pins) || {};
-  const expected = (typeof localPins[pinRole] === 'string' && !localPins[pinRole].startsWith('$2'))
-    ? localPins[pinRole]
+  const stored = localPins[pinRole];
+  const expected = (typeof stored === 'string' && !String(stored).startsWith('$2'))
+    ? stored
     : demos[pinRole];
 
-  if ((!data || data.status >= 400) && expected && pinInput === String(expected)) {
+  if (expected && pinInput === String(expected)) {
     setAuthToken(issueOfflineToken('tenant_' + currentTenant.id + '_' + pinRole));
     await loginSuccess(pinRole);
-    if (isStaticHost() || isOfflineToken(getSuperToken())) {
-      toast('PIN accepted (browser-local mode)', 'warn');
-    }
+    toast('PIN accepted (browser-local mode)', 'warn');
     return;
   }
 
-  toast(
-    data && data.error
-      ? data.error
-      : (!data ? (expected ? 'Incorrect PIN' : apiUnreachableMessage()) : 'Incorrect PIN'),
-    'err'
-  );
+  toast('Incorrect PIN', 'err');
   pinInput = '';
   updateDots();
 }
@@ -1996,13 +2112,16 @@ async function loginSuccess(role) {
   document.getElementById('hdrRole').textContent = role === 'admin' ? 'Admin' : branchName(role);
   document.getElementById('hdrBranch').textContent = role === 'admin' ? 'All Branches' : branchName(role);
 
-  // Admin access control
+  // Admin access control — cashiers stay on their branch only
   document.querySelectorAll('.adm-only').forEach(el => {
     el.style.display = (role === 'admin') ? 'flex' : 'none';
   });
+  const dashTab = document.querySelector('.nav-tab[data-tab="dashboard"]');
+  if (dashTab) dashTab.style.display = (role === 'admin') ? 'flex' : 'none';
 
   await loadTenantData();
   switchTab(role === 'admin' ? 'dashboard' : 'billing');
+  applyShopLinkChrome();
 }
 
 function logout() {
@@ -2011,12 +2130,18 @@ function logout() {
   document.getElementById('appScreen').classList.remove('show');
   document.getElementById('portalScreen').style.display = 'flex';
 
-  clearSessionAuth();
-  if (isDirectCustomerView) {
+  // Keep shop-link sessions isolated: clear staff token only, never open master
+  if (isShopLinkMode()) {
+    clearSessionAuth();
     if (currentTenant) chooseTenant(currentTenant.id, true);
-    else showSuperAdminLogin();
+    else {
+      const target = getWorkspaceParam();
+      if (target) showShopNotFound(target);
+    }
     return;
   }
+
+  clearSessionAuth();
   const superTok = getSuperToken();
   if (superTok) {
     setAuthToken(superTok);
@@ -2028,6 +2153,10 @@ function logout() {
 }
 
 function promptSwitchTenant() {
+  if (isShopLinkMode()) {
+    toast('This link is locked to one shop', 'warn');
+    return;
+  }
   logout();
 }
 
@@ -2075,6 +2204,10 @@ async function loadTenantData() {
 
 // ═══════════════ TAB NAVIGATION ═══════════════
 function switchTab(tab) {
+  if (isBranchCashier() && tab !== 'billing') {
+    tab = 'billing';
+    toast('Cashiers can only use the POS for their store', 'warn');
+  }
   activeTab = tab;
   document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -2167,7 +2300,7 @@ function renderDashboard() {
 
 // ═══════════════ 2. BILLING (POS) ═══════════════
 function renderBillingTab() {
-  fillBranchSelect(document.getElementById('billingBranchSelect'));
+  fillBranchSelect(document.getElementById('billingBranchSelect'), getActiveBranchId());
   const cats = ['all', ...new Set(products.map(p => p.cat).filter(Boolean))];
   const catWrap = document.getElementById('catFilters');
   catWrap.innerHTML = cats.map(c => `
@@ -2183,18 +2316,18 @@ function renderBillingTab() {
 function filterCat(c) { activeCat = c; renderBillingTab(); }
 
 function renderMenuGrid() {
-  const q = document.getElementById('menuSearch')?.value?.toLowerCase() || '';
-  const branchId = document.getElementById('billingBranchSelect')?.value || (getBranches()[0] && getBranches()[0].id) || 'b1';
-  
+  const q = document.getElementById('menuSearch')?.value?.toLowerCase().trim() || '';
+  const branchId = getActiveBranchId();
+
   let list = products.filter(p => {
     if (activeCat !== 'all' && p.cat !== activeCat) return false;
-    if (q && !p.name.toLowerCase().includes(q)) return false;
+    if (q && !(p.name || '').toLowerCase().includes(q)) return false;
     return true;
   });
 
   const grid = document.getElementById('menuGrid');
   if (list.length === 0) {
-    grid.innerHTML = '<div style="padding:40px;color:var(--text-muted);text-align:center;grid-column:1/-1">No items found in this category</div>';
+    grid.innerHTML = '<div style="padding:40px;color:var(--text-muted);text-align:center;grid-column:1/-1">No items found</div>';
     return;
   }
 
@@ -2207,23 +2340,35 @@ function renderMenuGrid() {
         <div class="mc-name">${p.name}</div>
         <div class="mc-price">${fmtMoney(p.price)}</div>
         <div class="mc-stock">${oos ? 'Out of stock' : `Stock: ${stk} ${p.unit || 'pcs'}`}</div>
-      </div>
-    `;
+      </div>`;
   }).join('');
 }
 
 function addToCart(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
+  const branchId = getActiveBranchId();
+  const stock = getProductStock(p, branchId);
   const existing = cart.find(c => c.id === id);
-  if (existing) existing.qty++;
-  else cart.push({ id, name: p.name, price: Number(p.price), cat: p.cat, qty: 1 });
+  const nextQty = (existing ? existing.qty : 0) + 1;
+  if (stock <= 0) { toast('Out of stock', 'err'); return; }
+  if (nextQty > stock) { toast(`Only ${stock} in stock`, 'warn'); return; }
+  if (existing) existing.qty = nextQty;
+  else cart.push({ id, productId: id, name: p.name, price: Number(p.price), cat: p.cat, qty: 1 });
   renderCart();
 }
 
 function changeQty(idx, d) {
-  cart[idx].qty += d;
-  if (cart[idx].qty <= 0) cart.splice(idx, 1);
+  const item = cart[idx];
+  if (!item) return;
+  if (d > 0) {
+    const p = products.find(x => x.id === item.id);
+    const branchId = getActiveBranchId();
+    const stock = p ? getProductStock(p, branchId) : 9999;
+    if (item.qty + d > stock) { toast(`Only ${stock} in stock`, 'warn'); return; }
+  }
+  item.qty += d;
+  if (item.qty <= 0) cart.splice(idx, 1);
   renderCart();
 }
 
@@ -2246,8 +2391,7 @@ function renderCart() {
           <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
         </div>
         <div style="font-weight:800;font-size:.9rem">${fmtMoney(c.price * c.qty)}</div>
-      </div>
-    `).join('');
+      </div>`).join('');
   }
 
   const sub = cart.reduce((a, c) => a + c.price * c.qty, 0);
@@ -2264,58 +2408,104 @@ function renderCart() {
 async function completeSale() {
   if (cart.length === 0) { toast('Please add items to cart', 'err'); return; }
 
-  const branch = document.getElementById('billingBranchSelect')?.value || 'b1';
+  const branch = getActiveBranchId();
   const custName = document.getElementById('custName')?.value.trim() || 'Walk-in Customer';
   const custPhone = document.getElementById('custPhone')?.value.trim() || '';
-  
+  const payMethod = document.getElementById('payMethod')?.value || 'cash';
+  const btn = document.getElementById('btnCompleteSale');
+
+  if (isBranchCashier() && branch !== currentRole) {
+    toast('You can only sell from your store', 'err');
+    return;
+  }
+
   const sub = cart.reduce((a, c) => a + c.price * c.qty, 0);
   const gstRate = Number(currentTenant?.gstRate ?? 5);
   const tax = sub * (gstRate / 100);
   const total = sub + tax;
-  const billNo = 'INV-' + (sales.length + 1001);
+  const saleId = 'sale_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+  const billNo = 'INV-' + Date.now().toString().slice(-8);
 
   const payload = {
+    id: saleId,
     billNo,
     branch,
     subtotal: sub,
     tax,
     total,
-    items: cart,
+    items: cart.map(c => ({ id: c.id, productId: c.id, name: c.name, price: c.price, qty: c.qty })),
     customerName: custName,
     customerPhone: custPhone,
+    payMethod,
     cashier: currentRole || 'admin'
   };
 
-  // 1. Immediately record in local tenant data for guaranteed reliability
-  const curData = getLocalData(currentTenant.id);
-  const newSale = {
-    id: 'sale_' + Date.now() + '_' + Math.floor(Math.random() * 1000),
-    tenantId: currentTenant.id,
-    ...payload,
-    ts: new Date().toISOString()
-  };
-  curData.sales.unshift(newSale);
+  if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
 
-  // Deduct inventory quantities locally
-  cart.forEach(item => {
-    const prod = curData.products.find(p => p.id === item.id || p.id === item.productId);
-    if (prod) setProductStockLocal(prod, branch, getProductStock(prod, branch) - (item.qty || 1));
-  });
-  saveLocalData(currentTenant.id, curData);
+  const offline = isOfflineToken() || (isStaticHost() && !getApiBase());
+  let recorded = null;
 
-  // 2. Background sync to backend API
-  apiFetch(`/api/tenant/${currentTenant.id}/sales`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).catch(() => {});
+  if (!offline) {
+    const data = await apiFetch(`/api/tenant/${currentTenant.id}/sales`, {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    if (data && data.success && data.sale) {
+      recorded = data.sale;
+      if (Array.isArray(data.products) && data.products.length) {
+        data.products.forEach(upd => {
+          const i = products.findIndex(p => p.id === upd.id);
+          if (i >= 0) products[i] = { ...products[i], ...upd };
+        });
+      }
+    } else if (data && data.success === false) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Complete sale'; }
+      toast(data.error || 'Sale failed', 'err');
+      return;
+    } else if (data === null && !offline) {
+      // API unreachable mid-session — fall through to local queue
+    } else if (data && !data.success) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Complete sale'; }
+      toast(data.error || 'Sale failed', 'err');
+      return;
+    }
+  }
 
-  toast(`Invoice #${billNo} recorded!`, 'ok');
-  showInvoiceModal(newSale);
+  if (!recorded) {
+    // Local / offline record (single stock deduct)
+    const curData = getLocalData(currentTenant.id);
+    recorded = { ...payload, tenantId: currentTenant.id, ts: new Date().toISOString() };
+    curData.sales = curData.sales || [];
+    curData.sales.unshift(recorded);
+    cart.forEach(item => {
+      const prod = (curData.products || []).find(p => p.id === item.id);
+      if (prod) setProductStockLocal(prod, branch, getProductStock(prod, branch) - (item.qty || 1));
+    });
+    saveLocalData(currentTenant.id, curData);
+    products = curData.products || products;
+    sales = curData.sales;
+    if (!offline) toast('Sale saved locally — API unreachable', 'warn');
+  } else {
+    const curData = getLocalData(currentTenant.id);
+    curData.sales = curData.sales || [];
+    if (!curData.sales.find(s => s.id === recorded.id)) curData.sales.unshift(recorded);
+    curData.products = products;
+    saveLocalData(currentTenant.id, curData);
+    sales = curData.sales;
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Complete sale'; }
+  toast(`Sale ${recorded.billNo} complete`, 'ok');
+  showInvoiceModal(recorded);
   clearCart();
   document.getElementById('custName').value = '';
   document.getElementById('custPhone').value = '';
-  await loadTenantData();
+  if (!offline) await loadTenantData();
+  else refreshActiveView();
+}
+
+function printInvoice() {
+  window.print();
 }
 
 function showInvoiceModal(sale) {
@@ -2338,7 +2528,7 @@ function showInvoiceModal(sale) {
       </div>
 
       <div style="margin-bottom:16px;font-size:.85rem">
-        <strong>Customer:</strong> ${sale.customerName || sale.custName || 'Walk-in'} ${sale.customerPhone ? '· ' + sale.customerPhone : ''}
+        <strong>Customer:</strong> ${sale.customerName || sale.custName || 'Walk-in'} ${sale.customerPhone ? '· ' + sale.customerPhone : ''}${sale.payMethod ? ' · ' + String(sale.payMethod).toUpperCase() : ''}
       </div>
 
       <table style="width:100%;border-collapse:collapse;font-size:.85rem;margin-bottom:16px">
@@ -2465,11 +2655,32 @@ async function saveProduct() {
       body: JSON.stringify(payload)
     }
   );
-  closeModal('productModal');
+
   if (data && data.success === false) {
     toast(data.error || 'Could not save product', 'err');
     return;
   }
+
+  if (!data || !data.success) {
+    // Offline / unreachable — persist locally
+    const curData = getLocalData(currentTenant.id);
+    curData.products = curData.products || [];
+    if (editProductId) {
+      const i = curData.products.findIndex(x => x.id === editProductId);
+      if (i < 0) { toast('Product not found locally', 'err'); return; }
+      curData.products[i] = { ...curData.products[i], ...payload };
+    } else {
+      curData.products.push({ id: 'prod_' + Date.now(), ...payload });
+    }
+    saveLocalData(currentTenant.id, curData);
+    products = curData.products;
+    closeModal('productModal');
+    toast(editProductId ? 'Product updated locally' : 'Product added locally', isOfflineToken() || (isStaticHost() && !getApiBase()) ? 'warn' : 'ok');
+    refreshActiveView();
+    return;
+  }
+
+  closeModal('productModal');
   toast(editProductId ? 'Product updated' : 'Product added', 'ok');
   await loadTenantData();
 }
@@ -2508,31 +2719,60 @@ function renderStockEntry() {
 async function saveStockEntry() {
   const branches = getBranches();
   const inputs = [...document.querySelectorAll('#stockEntryBody [data-se]')];
-  let saved = 0;
+  const byProduct = new Map();
   for (const inp of inputs) {
     const [pid, bid] = inp.getAttribute('data-se').split(':');
-    const qty = parseInt(inp.value) || 0;
+    if (!byProduct.has(pid)) byProduct.set(pid, {});
+    byProduct.get(pid)[bid] = parseInt(inp.value) || 0;
+  }
+
+  let saved = 0;
+  let failed = 0;
+  const offline = isOfflineToken() || (isStaticHost() && !getApiBase());
+
+  for (const [pid, stock] of byProduct.entries()) {
     const p = products.find(x => x.id === pid);
     if (!p) continue;
-    if (getProductStock(p, bid) === qty) continue;
-    const stock = {};
-    branches.forEach(b => { stock[b.id] = b.id === bid ? qty : getProductStock(p, b.id); });
-    // merge all inputs for this product
-    inputs.filter(i => i.getAttribute('data-se').startsWith(pid + ':')).forEach(i => {
-      const [, id] = i.getAttribute('data-se').split(':');
-      stock[id] = parseInt(i.value) || 0;
-    });
-    await apiFetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
+    const changed = branches.some(b => getProductStock(p, b.id) !== (stock[b.id] || 0));
+    if (!changed) continue;
+
+    const data = await apiFetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
       method: 'PUT', body: JSON.stringify({ stock })
     });
-    await apiFetch(`/api/tenant/${currentTenant.id}/stock-log`, {
-      method: 'POST',
-      body: JSON.stringify({ branch: bid, productName: p.name, change: qty - getProductStock(p, bid), reason: 'Stock count entry' })
-    });
+
+    if (data && data.success === false) { failed++; continue; }
+
+    if (!data || !data.success) {
+      if (!offline && data !== null) { failed++; continue; }
+      const curData = getLocalData(currentTenant.id);
+      const prod = (curData.products || []).find(x => x.id === pid);
+      if (!prod) { failed++; continue; }
+      Object.entries(stock).forEach(([bid, qty]) => setProductStockLocal(prod, bid, qty));
+      saveLocalData(currentTenant.id, curData);
+      products = curData.products;
+      saved++;
+      continue;
+    }
+
+    for (const b of branches) {
+      const prev = getProductStock(p, b.id);
+      const next = stock[b.id] || 0;
+      if (prev === next) continue;
+      await apiFetch(`/api/tenant/${currentTenant.id}/stock-log`, {
+        method: 'POST',
+        body: JSON.stringify({ branch: b.id, productName: p.name, change: next - prev, reason: 'Stock count entry' })
+      });
+    }
     saved++;
   }
-  toast(saved ? `Saved stock for ${saved} updates` : 'No changes', 'ok');
-  await loadTenantData();
+
+  if (failed && !saved) toast('Could not save stock', 'err');
+  else if (failed) toast(`Saved ${saved}, ${failed} failed`, 'warn');
+  else if (saved) toast(offline ? `Saved ${saved} stock update(s) locally` : `Saved ${saved} stock update(s)`, offline ? 'warn' : 'ok');
+  else toast('No changes', 'ok');
+
+  if (!offline) await loadTenantData();
+  else refreshActiveView();
 }
 
 function renderTransferTab() {
@@ -2561,7 +2801,21 @@ function renderTransferTab() {
 }
 
 function updateTransferPreview() {
-  /* optional live preview — kept for onchange hooks */
+  const el = document.getElementById('tfPreview');
+  if (!el) return;
+  const pid = document.getElementById('tfItem')?.value;
+  const from = document.getElementById('tfFrom')?.value;
+  const qty = parseInt(document.getElementById('tfQty')?.value) || 0;
+  const p = products.find(x => x.id === pid);
+  if (!p || !from) { el.textContent = ''; el.style.color = 'var(--text-muted)'; return; }
+  const avail = getProductStock(p, from);
+  if (qty > avail) {
+    el.textContent = `Insufficient stock — only ${avail} available at ${branchName(from)}`;
+    el.style.color = 'var(--red)';
+  } else {
+    el.textContent = `${avail} available at ${branchName(from)}` + (qty ? ` · moving ${qty}` : '');
+    el.style.color = 'var(--text-muted)';
+  }
 }
 
 async function confirmTransfer() {
@@ -2572,19 +2826,41 @@ async function confirmTransfer() {
   const note = document.getElementById('tfNote').value.trim();
   if (!pid || !qty) { toast('Select item and quantity', 'err'); return; }
   if (from === to) { toast('Choose different branches', 'err'); return; }
+  const p = products.find(x => x.id === pid);
+  if (!p) { toast('Product not found', 'err'); return; }
+  if (getProductStock(p, from) < qty) { toast('Insufficient stock', 'err'); return; }
 
   const data = await apiFetch(`/api/tenant/${currentTenant.id}/transfers`, {
     method: 'POST',
     body: JSON.stringify({ productId: pid, fromBranch: from, toBranch: to, qty, note })
   });
-  if (!data || data.success === false) {
-    toast((data && data.error) || 'Transfer failed', 'err');
+
+  if (data && data.success) {
+    toast('Transfer complete', 'ok');
+  } else if (data && data.success === false) {
+    toast(data.error || 'Transfer failed', 'err');
     return;
+  } else {
+    // Offline local transfer
+    const curData = getLocalData(currentTenant.id);
+    const prod = (curData.products || []).find(x => x.id === pid);
+    if (!prod || getProductStock(prod, from) < qty) { toast('Insufficient stock', 'err'); return; }
+    setProductStockLocal(prod, from, getProductStock(prod, from) - qty);
+    setProductStockLocal(prod, to, getProductStock(prod, to) + qty);
+    curData.transfers = curData.transfers || [];
+    curData.transfers.unshift({
+      id: 'tf_' + Date.now(), productId: pid, productName: prod.name,
+      fromBranch: from, toBranch: to, qty, note, ts: new Date().toISOString()
+    });
+    saveLocalData(currentTenant.id, curData);
+    products = curData.products;
+    transfers = curData.transfers;
+    toast('Transfer saved locally', 'warn');
   }
-  toast('Transfer complete', 'ok');
+
   document.getElementById('tfQty').value = '';
   document.getElementById('tfNote').value = '';
-  await loadTenantData();
+  if (data && data.success) await loadTenantData();
   renderTransferTab();
 }
 
@@ -2597,17 +2873,22 @@ function renderHistory() {
   }
   body.innerHTML = sales.map(s => `
     <tr>
-      <td style="font-family:var(--num);font-weight:650;font-variant-numeric:tabular-nums">${s.billNo}</td>
+      <td style="font-family:var(--num);font-weight:650;font-variant-numeric:tabular-nums">${s.billNo || ''}</td>
       <td style="font-size:.82rem">${new Date(s.ts).toLocaleString()}</td>
       <td><span class="badge badge-generic">${branchName(s.branch)}</span></td>
       <td>${s.customerName || s.custName || 'Walk-in'}</td>
       <td style="font-size:.82rem">${(s.items || []).map(i => `${i.name} ×${i.qty}`).join(', ')}</td>
       <td style="font-weight:800;color:var(--theme-primary)">${fmtMoney(s.total)}</td>
       <td>
-        <button class="btn btn-sm btn-outline" onclick='showInvoiceModal(${JSON.stringify(s)})'>👁 View</button>
+        <button class="btn btn-sm btn-outline" onclick="viewSaleById('${String(s.id || '').replace(/'/g, '')}')">View</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`).join('');
+}
+
+function viewSaleById(id) {
+  const sale = sales.find(s => s.id === id);
+  if (!sale) { toast('Invoice not found', 'err'); return; }
+  showInvoiceModal(sale);
 }
 
 function exportCSV() {
@@ -2811,15 +3092,19 @@ async function saveTenantBranding() {
   if (currentTenant.logoUrl) {
     logoContainer.innerHTML = `<img src="${currentTenant.logoUrl}" class="hdr-logo-img" alt="logo"/>`;
   }
-  toast('Brand & Logo updated successfully! ✓', 'ok');
-  await loadTenants();
-
-  // 2. Background sync to backend API
-  apiFetch(`/api/tenants/${currentTenant.id}`, {
+  const data = await apiFetch(`/api/tenants/${currentTenant.id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates)
-  }).catch(() => {});
+  });
+  if (data && data.success === false) {
+    toast(data.error || 'Could not sync branding to server', 'err');
+  } else if (!data) {
+    toast('Brand saved locally (API unreachable)', 'warn');
+  } else {
+    toast('Brand settings saved', 'ok');
+    if (data.tenant) currentTenant = { ...currentTenant, ...data.tenant };
+  }
+  await loadTenants({ skipRouting: true, requireAuth: true });
 }
 
 // ═══════════════ DATABASE & CLOUDFLARE CONFIG ═══════════════
@@ -2882,6 +3167,10 @@ function resetApiUrlToDefault() {
 }
 
 function openDbConfigModal() {
+  if (isShopLinkMode()) {
+    toast('API settings are only available in the master console', 'warn');
+    return;
+  }
   const input = document.getElementById('cfgApiBaseUrl');
   if (input) {
     input.value = sanitizeStoredApiBase(localStorage.getItem('omni_api_base')) || getApiBase() || '';
