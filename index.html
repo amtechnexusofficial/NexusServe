@@ -3,339 +3,431 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>OmniPOS & Inventory — Multi-Tenant Platform</title>
-<meta name="description" content="Multi-tenant POS and inventory SaaS platform with custom client branding, logo upload, branch tracking, and isolated client data."/>
-<meta property="og:title" content="OmniPOS & Inventory — Multi-Tenant Platform"/>
-<meta property="og:description" content="Multi-tenant POS and inventory SaaS platform with custom client branding, logo upload, branch tracking, and isolated client data."/>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;900&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<title>NexusServe POS</title>
+<meta name="description" content="Multi-tenant POS and inventory for branded client shops, branch stock, and isolated billing."/>
+<meta property="og:title" content="NexusServe POS"/>
+<meta property="og:description" content="Multi-tenant POS and inventory for branded client shops, branch stock, and isolated billing."/>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
-  --bg:          #f8f9fa;
-  --bg2:         #f1f3f5;
-  --panel:       #ffffff;
-  --panel2:      #fcfcfd;
-  --border:      #e2e8f0;
-  --border2:     #cbd5e1;
-  --theme-primary: #c8860a;
-  --theme-hover:   #b47506;
-  --theme-light:   #fef3c7;
-  --theme-accent:  #3d1f0a;
-  --text-main:     #0f172a;
-  --text-muted:    #64748b;
-  --text-dim:      #94a3b8;
-  --red:         #ef4444;
-  --green:       #10b981;
-  --blue:        #2563eb;
-  --purple:      #8b5cf6;
-  --shadow:      0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
-  --shadow-lg:   0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-  --radius:      12px;
-  --radius-sm:   6px;
+  --bg: #f4f3ef;
+  --bg2: #ebeae4;
+  --panel: #ffffff;
+  --panel2: #f9f8f5;
+  --border: #dddcd5;
+  --border2: #c5c4bc;
+  --ink: #171717;
+  --theme-primary: #171717;
+  --theme-hover: #2e2e2e;
+  --theme-light: #f3e8c8;
+  --theme-accent: #171717;
+  --signal: #e4a11b;
+  --text-main: #1a1a1a;
+  --text-muted: #6a6963;
+  --text-dim: #97968f;
+  --red: #c0392b;
+  --green: #1f7a4d;
+  --blue: #245a8c;
+  --radius: 10px;
+  --radius-sm: 7px;
+  --font: 'Figtree', 'Avenir Next', 'Segoe UI', sans-serif;
+  --display: 'Figtree', 'Avenir Next', 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --num: 'Figtree', 'Avenir Next', 'Segoe UI', sans-serif;
+  --soft-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 14px rgba(0,0,0,.04);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 15px; scroll-behavior: smooth; }
-body { background: var(--bg); color: var(--text-main); font-family: 'Plus Jakarta Sans', sans-serif; min-height: 100vh; -webkit-font-smoothing: antialiased; }
+html { font-size: 14px; }
+body {
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: var(--font);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
 
-/* ─── SCROLLBAR ─── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg2); }
-::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 8px; border: 2px solid var(--bg); }
 
-/* ─── WORKSPACE / TENANT SELECTION & LOGIN SCREEN ─── */
+/* Portal */
 #portalScreen {
   position: fixed; inset: 0; z-index: 9999;
-  background: radial-gradient(circle at 10% 20%, #f8fafc 0%, #e2e8f0 90%);
-  display: flex; align-items: center; justify-content: center; padding: 20px;
-  overflow-y: auto;
+  background: var(--bg);
+  overflow: auto;
+  display: flex; flex-direction: column;
+}
+.portal-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; padding: 16px 22px;
+  background: rgba(255,255,255,.85); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.portal-wordmark {
+  font-family: var(--display); font-size: 1.4rem; font-weight: 700;
+  letter-spacing: -.01em;
+}
+.portal-wordmark small {
+  display: block; font-family: var(--font); font-size: .7rem; font-weight: 500;
+  color: var(--text-muted); margin-top: 1px;
 }
 .portal-card {
-  background: var(--panel); border-radius: 20px; box-shadow: var(--shadow-lg);
-  border: 1px solid var(--border); width: 100%; max-width: 520px; overflow: hidden;
-  animation: modalIn .3s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%; max-width: 520px; margin: 32px auto 56px; padding: 0 16px;
 }
-.portal-header {
-  padding: 32px 32px 24px; text-align: center; border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-}
+.portal-header { padding: 0 0 14px; border-bottom: 1px solid var(--border); }
 .portal-logo-pill {
-  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
-  background: #f1f5f9; border-radius: 30px; font-size: .8rem; font-weight: 700;
-  color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 12px;
+  font-size: .78rem; font-weight: 600; color: var(--text-muted); margin-bottom: 4px;
 }
-.portal-title { font-family: 'Playfair Display', serif; font-size: 1.85rem; font-weight: 900; color: #0f172a; }
-.portal-subtitle { font-size: .88rem; color: var(--text-muted); margin-top: 6px; }
+.portal-title {
+  font-family: var(--display); font-size: 1.7rem; font-weight: 700;
+  line-height: 1.1; letter-spacing: -.01em;
+}
+.portal-subtitle { font-size: .9rem; color: var(--text-muted); margin-top: 5px; line-height: 1.4; }
 
-.tenant-list { padding: 20px 24px; display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto; }
+.portal-url-bar {
+  margin-top: 12px; background: #fff; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: .78rem;
+  box-shadow: var(--soft-shadow);
+}
+.portal-url-bar code { font-family: var(--mono); color: var(--text-main); font-weight: 600; font-size: .72rem; }
+
+.tenant-list {
+  padding: 14px 0; display: flex; flex-direction: column; gap: 8px;
+  background: transparent; border: none;
+}
 .tenant-item {
-  border: 1.5px solid var(--border); border-radius: var(--radius); padding: 14px 18px;
-  display: flex; align-items: center; gap: 16px; cursor: pointer; transition: all .18s ease;
-  background: #fff;
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px; cursor: pointer;
+  background: #fff; box-shadow: var(--soft-shadow); transition: border-color .12s, background .12s;
 }
-.tenant-item:hover {
-  border-color: var(--theme-primary); transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
-}
+.tenant-item:hover { background: #fffaf0; border-color: #c9b88a; }
 .tenant-avatar {
-  width: 46px; height: 46px; border-radius: 10px; background: var(--bg2);
-  display: flex; align-items: center; justify-content: center; font-size: 1.4rem;
-  overflow: hidden; flex-shrink: 0; border: 1px solid var(--border);
+  width: 38px; height: 38px; border-radius: 9px; background: var(--ink); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: .95rem; font-weight: 700;
+  overflow: hidden; flex-shrink: 0; font-family: var(--display);
 }
-.tenant-avatar img { width: 100%; height: 100%; object-fit: contain; }
+.tenant-avatar img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
 .tenant-info { flex: 1; min-width: 0; }
-.tenant-name { font-weight: 700; font-size: 1rem; color: var(--text-main); }
-.tenant-desc { font-size: .78rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tenant-badge { font-size: .72rem; padding: 3px 8px; border-radius: 20px; font-weight: 600; background: #e2e8f0; color: #475569; }
+.tenant-name { font-weight: 650; font-size: .95rem; }
+.tenant-desc { font-size: .76rem; color: var(--text-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tenant-badge {
+  font-family: var(--mono); font-size: .68rem; padding: 3px 8px; border-radius: 999px;
+  font-weight: 600; background: var(--bg2); color: var(--text-muted); border: none;
+}
 
 .portal-footer {
-  padding: 18px 24px; background: #f8fafc; border-top: 1px solid var(--border);
-  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 0 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
 }
 
-/* ─── PIN PAD SCREEN ─── */
-.pin-dots { display: flex; gap: 12px; justify-content: center; margin: 20px 0 20px; }
-.pin-dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--border2); background: transparent; transition: .2s; }
-.pin-dot.filled { background: var(--theme-primary); border-color: var(--theme-primary); transform: scale(1.15); }
-.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.role-row {
+  display: flex; flex-direction: column; gap: 8px; border: none; background: transparent; margin: 12px 0;
+}
+.role-btn {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left;
+  padding: 12px 14px; background: #fff; border: 1px solid var(--border);
+  border-radius: var(--radius); cursor: pointer; font-family: var(--font); color: var(--text-main);
+  box-shadow: var(--soft-shadow);
+}
+.role-btn:hover { background: #fffaf0; border-color: #c9b88a; }
+.role-btn .role-key {
+  font-family: var(--display); font-size: .78rem; font-weight: 700;
+  background: var(--ink); color: #fff; min-width: 2.5rem; text-align: center;
+  padding: 5px 0; border-radius: 6px;
+}
+.role-btn .role-title { font-weight: 650; font-size: .92rem; }
+.role-btn .role-meta { font-size: .76rem; color: var(--text-muted); margin-top: 2px; }
+
+.pin-dots { display: flex; gap: 10px; justify-content: center; margin: 16px 0; }
+.pin-dot {
+  width: 11px; height: 11px; border-radius: 50%; border: 2px solid var(--border2); background: transparent;
+}
+.pin-dot.filled { background: var(--signal); border-color: var(--signal); }
+.pin-pad {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 auto 12px;
+  max-width: 248px;
+}
 .pin-btn {
-  background: var(--bg2); border: 1.5px solid var(--border); border-radius: var(--radius);
-  padding: 14px; font-size: 1.3rem; font-weight: 700; color: var(--text-main);
-  cursor: pointer; transition: .15s;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 0;
+  font-size: 1.2rem; font-weight: 650; font-family: var(--num); color: var(--ink); cursor: pointer;
+  box-shadow: var(--soft-shadow); font-variant-numeric: tabular-nums;
 }
-.pin-btn:hover { background: var(--theme-light); border-color: var(--theme-primary); color: var(--theme-primary); }
-.pin-btn:active { transform: scale(.95); }
-.pin-btn.danger { color: var(--red); font-size: .9rem; }
+.pin-btn:hover { background: var(--signal); border-color: #c9891a; }
+.pin-btn:active { background: #f0c95a; }
+.pin-btn.danger { color: var(--red); font-size: .78rem; font-family: var(--font); font-weight: 700; }
 .role-badge-pill {
-  display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px;
-  background: var(--theme-light); color: var(--theme-primary); border-radius: 20px;
-  font-weight: 700; font-size: .8rem; margin-bottom: 12px;
+  display: inline-block; padding: 3px 10px; margin-bottom: 8px; border-radius: 999px;
+  background: var(--signal); color: var(--ink); border: none;
+  font-family: var(--display); font-weight: 700; font-size: .75rem;
 }
 
-/* ─── HEADER ─── */
+/* App shell */
 #appScreen { display: none; min-height: 100vh; flex-direction: column; }
 #appScreen.show { display: flex; }
 #header {
-  background: var(--theme-accent); height: 60px; display: flex; align-items: center;
-  padding: 0 24px; gap: 16px; position: sticky; top: 0; z-index: 200;
-  box-shadow: 0 2px 14px rgba(0,0,0,.15);
+  background: var(--ink); height: 52px; display: flex; align-items: center;
+  padding: 0 16px; gap: 10px; position: sticky; top: 0; z-index: 200;
 }
-.hdr-brand-box { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-.hdr-logo-img { width: 36px; height: 36px; border-radius: 8px; object-fit: contain; background: #fff; padding: 2px; }
-.hdr-logo-txt { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 800; color: #fff; line-height: 1.1; }
-.hdr-logo-txt small { display: block; font-family: 'Plus Jakarta Sans', sans-serif; font-size: .68rem; font-weight: 500; color: var(--theme-primary); letter-spacing: .06em; text-transform: uppercase; }
+.hdr-brand-box { display: flex; align-items: center; gap: 9px; cursor: pointer; min-width: 0; }
+.hdr-logo-img { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: #fff; padding: 1px; }
+.hdr-logo-txt { font-family: var(--display); font-size: 1.1rem; font-weight: 700; color: #fff; line-height: 1.1; }
+.hdr-logo-txt small {
+  display: block; font-family: var(--font); font-size: .62rem; font-weight: 500; color: #aaa;
+}
 .hdr-tenant-switch {
-  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25); border-radius: 20px;
-  padding: 4px 12px; font-size: .78rem; font-weight: 600; color: #fff; cursor: pointer;
-  display: flex; align-items: center; gap: 6px; transition: .15s;
+  background: rgba(255,255,255,.06); border: 1px solid #444; border-radius: 999px;
+  padding: 4px 10px; font-size: .72rem; font-weight: 600; color: #ddd; cursor: pointer; font-family: var(--font);
 }
-.hdr-tenant-switch:hover { background: rgba(255,255,255,.2); }
+.hdr-tenant-switch:hover { border-color: var(--signal); color: #fff; }
 .hdr-branch-tag {
-  background: rgba(255,255,255,.15); border-radius: 20px; padding: 3px 12px;
-  font-size: .78rem; font-weight: 700; color: #fef08a; letter-spacing: .04em;
+  background: var(--signal); color: var(--ink); border: none; border-radius: 999px;
+  padding: 3px 10px; font-family: var(--display); font-size: .75rem; font-weight: 700;
 }
 .hdr-spacer { flex: 1; }
 .hdr-db-badge {
-  font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 20px;
-  background: rgba(16,185,129,.2); color: #6ee7b7; border: 1px solid rgba(16,185,129,.3);
+  font-family: var(--mono); font-size: .68rem; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+  color: #9fdfb8; border: 1px solid #3d6b50;
 }
-.hdr-clock { font-family: 'Space Mono', monospace; font-size: .82rem; color: rgba(255,255,255,.8); }
-.hdr-role { background: var(--theme-primary); color: #fff; font-size: .75rem; font-weight: 700; padding: 4px 12px; border-radius: 20px; }
+.hdr-clock {
+  font-family: var(--num); font-size: .82rem; font-weight: 500; color: #bbb;
+  font-variant-numeric: tabular-nums;
+}
+.hdr-role {
+  background: #fff; color: var(--ink); font-family: var(--display); border-radius: 999px;
+  font-size: .7rem; font-weight: 700; padding: 4px 9px;
+}
 .hdr-logout {
-  background: transparent; border: 1px solid rgba(255,255,255,.3); color: rgba(255,255,255,.85);
-  border-radius: var(--radius-sm); padding: 6px 14px; font-size: .8rem; font-weight: 600;
-  cursor: pointer; transition: .15s;
+  background: transparent; border: 1px solid #555; border-radius: var(--radius-sm); color: #ccc;
+  padding: 5px 11px; font-size: .76rem; font-weight: 600; cursor: pointer; font-family: var(--font);
 }
-.hdr-logout:hover { background: rgba(255,255,255,.2); color: #fff; }
+.hdr-logout:hover { border-color: #fff; color: #fff; }
 
-/* ─── NAV TABS ─── */
+.app-body { display: flex; flex: 1; min-height: 0; }
 #navBar {
-  background: var(--panel); border-bottom: 1.5px solid var(--border); display: flex;
-  overflow-x: auto; position: sticky; top: 60px; z-index: 190; scrollbar-width: none;
-  padding: 0 20px;
+  width: 156px; flex-shrink: 0; background: transparent;
+  border-right: none; display: flex; flex-direction: column; gap: 2px;
+  padding: 14px 10px; position: sticky; top: 52px;
+  height: calc(100vh - 52px); overflow-y: auto; scrollbar-width: thin;
 }
-#navBar::-webkit-scrollbar { display: none; }
 .nav-tab {
-  padding: 15px 18px; font-size: .88rem; font-weight: 600; color: var(--text-muted);
-  cursor: pointer; white-space: nowrap; border-bottom: 2.5px solid transparent; margin-bottom: -1.5px;
-  transition: .15s; display: flex; align-items: center; gap: 8px;
+  padding: 9px 12px; font-size: .84rem; font-weight: 600; color: var(--text-muted);
+  cursor: pointer; border: none; border-radius: var(--radius-sm); margin: 0;
 }
-.nav-tab:hover { color: var(--text-main); background: var(--bg2); }
-.nav-tab.active { color: var(--theme-primary); border-bottom-color: var(--theme-primary); font-weight: 700; }
+.nav-tab:hover { color: var(--ink); background: rgba(255,255,255,.7); }
+.nav-tab.active {
+  color: var(--ink); background: #fff; font-weight: 700;
+  box-shadow: var(--soft-shadow);
+}
 .nav-tab.adm-only { display: none; }
 
-/* ─── MAIN ─── */
-#mainContent { flex: 1; padding: 24px; max-width: 1500px; width: 100%; margin: 0 auto; }
+#mainContent { flex: 1; padding: 18px 20px 28px; max-width: none; width: 100%; margin: 0; min-width: 0; }
 
-/* ─── STAT CARDS ─── */
-.stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-.stat-card {
-  background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
-  padding: 18px 20px; border-left: 4px solid var(--theme-primary); box-shadow: var(--shadow);
+.page-title {
+  font-family: var(--display); font-size: 1.45rem; font-weight: 700;
+  line-height: 1.1; letter-spacing: -.01em;
 }
-.stat-card.b-red { border-left-color: var(--red); }
-.stat-card.b-blue { border-left-color: var(--blue); }
-.stat-card.b-green { border-left-color: var(--green); }
-.stat-num { font-family: 'Playfair Display', serif; font-size: 2.1rem; font-weight: 800; color: var(--text-main); line-height: 1.1; }
-.stat-label { font-size: .78rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
-.stat-sub { font-size: .78rem; color: var(--text-dim); margin-top: 2px; }
+.page-sub { font-size: .86rem; color: var(--text-muted); margin-top: 3px; }
+.section-title {
+  font-family: var(--display); font-size: 1rem; font-weight: 700;
+  margin: 0 0 12px;
+}
 
-/* ─── TABLE WRAPPER ─── */
+.stat-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+  margin-bottom: 18px; border: none; background: transparent;
+}
+.stat-card {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; box-shadow: var(--soft-shadow);
+  border-top: 3px solid var(--ink);
+}
+.stat-card:last-child { border-right: 1px solid var(--border); }
+.stat-card.b-red { border-top-color: var(--red); }
+.stat-card.b-blue { border-top-color: var(--blue); }
+.stat-card.b-green { border-top-color: var(--green); }
+.stat-num {
+  font-family: var(--num); font-size: 1.55rem; font-weight: 600; line-height: 1.1;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+}
+.stat-label { font-size: .76rem; font-weight: 650; color: var(--text-muted); margin-top: 5px; }
+.stat-sub { font-size: .72rem; color: var(--text-dim); margin-top: 2px; }
+
 .tbl-wrap {
-  background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
-  overflow: hidden; box-shadow: var(--shadow); margin-bottom: 24px;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 16px; overflow: hidden; box-shadow: var(--soft-shadow);
 }
 .tbl-head {
-  padding: 16px 20px; display: flex; align-items: center; gap: 12px;
-  background: var(--panel2); border-bottom: 1.5px solid var(--border); flex-wrap: wrap;
+  padding: 11px 14px; display: flex; align-items: center; gap: 10px;
+  background: var(--panel2); border-bottom: 1px solid var(--border); flex-wrap: wrap;
 }
-.tbl-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: var(--text-main); flex: 1; }
-.tbl-tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.tbl-wrap table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+.tbl-title { font-family: var(--display); font-size: .95rem; font-weight: 700; flex: 1; }
+.tbl-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.tbl-wrap table { width: 100%; border-collapse: collapse; font-size: .84rem; }
 .tbl-wrap th {
-  background: var(--bg2); padding: 11px 16px; text-align: left; font-size: .75rem;
-  font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em;
-  border-bottom: 1.5px solid var(--border);
+  background: var(--bg2); padding: 8px 12px; text-align: left; font-size: .74rem;
+  font-weight: 650; color: var(--text-muted); border-bottom: 1px solid var(--border);
+  font-family: var(--font);
 }
-.tbl-wrap td { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-main); vertical-align: middle; }
+.tbl-wrap td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-variant-numeric: tabular-nums; }
 .tbl-wrap tr:last-child td { border-bottom: none; }
-.tbl-wrap tr:hover td { background: #f8fafc; }
+.tbl-wrap tr:hover td { background: #fffaf0; }
 
-/* ─── BADGES ─── */
-.badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: .74rem; font-weight: 700; letter-spacing: .03em; }
-.badge-generic { background: #f1f5f9; color: #475569; }
-.badge-ok { background: #dcfce7; color: #15803d; }
-.badge-low { background: #fee2e2; color: #b91c1c; font-weight: 700; }
-.badge-paid { background: #dcfce7; color: #15803d; }
-.badge-b1 { background: #e0f2fe; color: #0369a1; }
-.badge-b2 { background: #fef3c7; color: #b45309; }
-.badge-b3 { background: #f3e8ff; color: #7e22ce; }
-.badge-admin { background: var(--theme-light); color: var(--theme-primary); }
-
-/* ─── BUTTONS ─── */
-.btn {
-  display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: var(--radius-sm);
-  font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 600; font-size: .88rem; cursor: pointer;
-  border: 1.5px solid transparent; transition: .15s; text-decoration: none; white-space: nowrap;
+.badge {
+  display: inline-block; padding: 2px 8px; border-radius: 999px; font-family: var(--mono);
+  font-size: .68rem; font-weight: 600; border: none;
 }
-.btn:active { transform: scale(.97); }
-.btn-primary { background: var(--theme-primary); color: #fff; border-color: var(--theme-primary); }
-.btn-primary:hover { background: var(--theme-hover); border-color: var(--theme-hover); }
-.btn-dark { background: var(--theme-accent); color: #fff; border-color: var(--theme-accent); }
-.btn-dark:hover { opacity: .9; }
-.btn-outline { background: transparent; color: var(--text-main); border-color: var(--border2); }
-.btn-outline:hover { background: var(--bg2); border-color: var(--theme-primary); color: var(--theme-primary); }
-.btn-danger { background: #fee2e2; color: var(--red); border-color: #fca5a5; }
-.btn-danger:hover { background: var(--red); color: #fff; }
-.btn-green { background: #dcfce7; color: var(--green); border-color: #86efac; }
-.btn-green:hover { background: var(--green); color: #fff; }
-.btn-sm { padding: 6px 12px; font-size: .8rem; }
+.badge-generic { background: var(--bg2); color: var(--text-muted); }
+.badge-ok, .badge-paid { background: #e5f4eb; color: var(--green); }
+.badge-low { background: #f8e6e3; color: var(--red); }
+.badge-b1 { background: #e4eef7; color: var(--blue); }
+.badge-b2 { background: #fff3d6; color: #7a5a10; }
+.badge-b3 { background: #eeeef2; color: #4a4560; }
+.badge-admin { background: var(--theme-light); color: var(--ink); }
 
-/* ─── INPUTS ─── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+  font-family: var(--font); font-weight: 650; font-size: .84rem; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  background: #fff; color: var(--ink); text-decoration: none; white-space: nowrap;
+}
+.btn:hover { background: #fffaf0; }
+.btn-primary { background: var(--ink); color: #fff; border-color: var(--ink); }
+.btn-primary:hover { background: #333; color: #fff; }
+.btn-dark { background: var(--ink); color: #fff; }
+.btn-dark:hover { background: #333; }
+.btn-outline { background: #fff; color: var(--ink); border-color: var(--border2); }
+.btn-outline:hover { border-color: #aaa; background: #fffaf0; }
+.btn-danger { background: #fff5f3; color: var(--red); border-color: transparent; }
+.btn-danger:hover { background: var(--red); color: #fff; }
+.btn-green { background: #eef8f2; color: var(--green); border-color: transparent; }
+.btn-green:hover { background: var(--green); color: #fff; }
+.btn-sm { padding: 5px 10px; font-size: .78rem; }
+
 input, select, textarea {
-  font-family: 'Plus Jakarta Sans', sans-serif; font-size: .88rem; background: var(--bg2);
-  border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px;
-  color: var(--text-main); transition: .15s; width: 100%; outline: none;
+  font-family: var(--font); font-size: .86rem; background: #fff;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  padding: 9px 11px; color: var(--text-main); width: 100%; outline: none;
 }
 input:focus, select:focus, textarea:focus {
-  border-color: var(--theme-primary); background: #fff; box-shadow: 0 0 0 3px rgba(200,134,10,.12);
+  border-color: #c9b88a; outline: 2px solid rgba(228,161,27,.35); outline-offset: 0;
 }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .form-row.one { grid-template-columns: 1fr; }
-.form-group { display: flex; flex-direction: column; gap: 6px; }
-.form-group label { font-size: .78rem; font-weight: 700; color: var(--text-muted); letter-spacing: .04em; text-transform: uppercase; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-group label {
+  font-size: .76rem; font-weight: 650; color: var(--text-muted);
+}
 
-/* ─── BRANDING CUSTOMIZER & LOGO UPLOADER ─── */
 .branding-preview-card {
-  border: 1.5px dashed var(--border2); border-radius: var(--radius); padding: 20px;
+  border: 1px dashed var(--border2); border-radius: var(--radius); padding: 18px;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: var(--bg2); cursor: pointer; text-align: center; position: relative;
-  transition: .2s; min-height: 140px;
+  background: var(--bg2); cursor: pointer; text-align: center; min-height: 120px;
 }
-.branding-preview-card:hover { border-color: var(--theme-primary); background: #fff; }
-.branding-logo-preview { max-width: 140px; max-height: 90px; object-fit: contain; margin-bottom: 10px; }
+.branding-preview-card:hover { border-color: #c9b88a; border-style: solid; background: #fff; }
+.branding-logo-preview { max-width: 140px; max-height: 90px; object-fit: contain; margin-bottom: 8px; }
 
-/* ─── BILLING ─── */
-#billingWrap { display: grid; grid-template-columns: 1fr 400px; gap: 20px; align-items: start; }
-.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+#billingWrap { display: grid; grid-template-columns: 1fr 330px; gap: 14px; align-items: start; }
+.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; }
 .menu-card {
-  background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
-  padding: 16px; cursor: pointer; transition: .2s; box-shadow: var(--shadow); position: relative;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px; cursor: pointer; box-shadow: var(--soft-shadow);
 }
-.menu-card:hover { border-color: var(--theme-primary); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-.menu-card.oos { opacity: .45; pointer-events: none; filter: grayscale(.8); }
-.mc-name { font-size: .92rem; font-weight: 700; color: var(--text-main); margin: 6px 0; line-height: 1.3; }
-.mc-price { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 800; color: var(--theme-primary); }
-.mc-stock { font-size: .74rem; color: var(--text-muted); margin-top: 4px; }
+.menu-card:hover { border-color: #c9b88a; background: #fffaf0; }
+.menu-card.oos { opacity: .35; pointer-events: none; }
+.mc-name { font-size: .86rem; font-weight: 650; margin: 6px 0 4px; line-height: 1.25; }
+.mc-price {
+  font-family: var(--num); font-size: 1.05rem; font-weight: 650;
+  letter-spacing: -.015em; font-variant-numeric: tabular-nums;
+}
+.mc-stock {
+  font-size: .72rem; color: var(--text-muted); margin-top: 3px;
+  font-family: var(--font); font-variant-numeric: tabular-nums;
+}
 
-/* ─── CART ─── */
 .cart-panel {
-  background: var(--panel); border: 1.5px solid var(--border); border-radius: var(--radius);
-  box-shadow: var(--shadow-lg); position: sticky; top: 80px; max-height: calc(100vh - 100px);
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  box-shadow: var(--soft-shadow);
+  position: sticky; top: 64px; max-height: calc(100vh - 80px);
   display: flex; flex-direction: column; overflow: hidden;
 }
 .cart-hdr {
-  padding: 16px 20px; border-bottom: 1.5px solid var(--border); background: var(--theme-accent);
+  padding: 12px 14px; border-bottom: 1px solid #2a2a2a; background: var(--ink);
   display: flex; align-items: center; justify-content: space-between;
 }
-.cart-hdr-title { font-family: 'Playfair Display', serif; font-size: 1.1rem; font-weight: 700; color: #fff; }
-.cart-items { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
-.cart-empty { text-align: center; padding: 40px 20px; color: var(--text-dim); font-size: .9rem; }
+.cart-hdr-title { font-family: var(--display); font-size: 1rem; font-weight: 700; color: #fff; }
+.cart-items { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.cart-empty { text-align: center; padding: 28px 12px; color: var(--text-dim); font-size: .86rem; }
 .cart-item {
-  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm);
-  background: var(--bg2); border: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: var(--radius-sm);
 }
-.qty-ctrl { display: flex; align-items: center; gap: 6px; }
+.qty-ctrl { display: flex; align-items: center; gap: 5px; }
 .qty-btn {
-  width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border2);
-  background: #fff; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border: 1px solid var(--border2); border-radius: 50%;
+  background: #fff; font-weight: 650; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-family: var(--num); font-variant-numeric: tabular-nums;
 }
-.qty-btn:hover { background: var(--theme-primary); color: #fff; border-color: var(--theme-primary); }
-.cart-footer { border-top: 1.5px solid var(--border); padding: 16px; background: var(--panel2); }
-.cart-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; font-size: .9rem; }
+.qty-btn:hover { background: var(--signal); border-color: #c9891a; }
+.cart-footer { border-top: 1px solid var(--border); padding: 12px; background: #fff; }
+.cart-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: .86rem; }
 .cart-row.total-row {
-  font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 800; color: var(--text-main);
-  padding-top: 10px; margin-top: 6px; border-top: 2px dashed var(--border);
+  font-family: var(--num); font-size: 1.2rem; font-weight: 650;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+  padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--border);
 }
+.cart-row span:last-child { font-variant-numeric: tabular-nums; }
 
-/* ─── MODAL & TOASTS ─── */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(15,23,42,.65); backdrop-filter: blur(4px);
+  position: fixed; inset: 0; background: rgba(20,20,20,.4);
   z-index: 10050; display: none; align-items: center; justify-content: center; padding: 16px;
 }
 .modal-overlay.show { display: flex; }
 .modal {
-  background: var(--panel); border-radius: 16px; box-shadow: var(--shadow-lg);
-  width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; animation: modalIn .2s ease;
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  width: 100%; max-width: 580px; max-height: 90vh; overflow-y: auto;
+  box-shadow: 0 16px 40px rgba(0,0,0,.14);
 }
-.modal-lg { max-width: 760px; }
-@keyframes modalIn { from { opacity: 0; transform: translateY(14px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
-.modal-hdr { padding: 20px 24px; border-bottom: 1.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.modal-title { font-family: 'Playfair Display', serif; font-size: 1.25rem; font-weight: 800; }
-.modal-body { padding: 24px; }
-.modal-footer { padding: 16px 24px; border-top: 1.5px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; }
+.modal-lg { max-width: 740px; }
+.modal-hdr { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.modal-title { font-family: var(--display); font-size: 1.1rem; font-weight: 700; }
+.modal-close {
+  background: var(--bg2); border: none; color: var(--ink); border-radius: 50%;
+  width: 30px; height: 30px; cursor: pointer; font-size: .9rem; font-family: var(--font);
+}
+.modal-close:hover { background: var(--signal); }
+.modal-body { padding: 16px; }
+.modal-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
 
-#toastZone { position: fixed; bottom: 24px; right: 24px; z-index: 10100; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+#toastZone { position: fixed; bottom: 18px; right: 18px; z-index: 10100; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
 .toast {
-  background: #fff; border: 1.5px solid var(--border); border-radius: var(--radius);
-  padding: 14px 18px; box-shadow: var(--shadow-lg); font-size: .88rem; font-weight: 600;
-  display: flex; align-items: center; gap: 10px; pointer-events: all; animation: modalIn .25s ease;
-  border-left: 4px solid var(--theme-primary);
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 11px 14px; font-size: .84rem; font-weight: 650;
+  display: flex; align-items: center; gap: 8px; pointer-events: all;
+  box-shadow: var(--soft-shadow); border-left: 4px solid var(--signal);
 }
 .toast.err { border-left-color: var(--red); color: var(--red); }
-.toast.ok { border-left-color: var(--green); color: #065f46; }
+.toast.ok { border-left-color: var(--green); color: var(--green); }
 
-/* ─── RESPONSIVE ─── */
-@media(max-width: 960px) {
+@media (max-width: 960px) {
+  .app-body { flex-direction: column; }
+  #navBar {
+    width: 100%; height: auto; position: sticky; top: 52px; flex-direction: row;
+    overflow-x: auto; border-right: 0; padding: 8px 10px; gap: 4px;
+    background: rgba(244,243,239,.92); backdrop-filter: blur(8px);
+  }
+  .nav-tab { white-space: nowrap; }
   .stat-grid { grid-template-columns: 1fr 1fr; }
   #billingWrap { grid-template-columns: 1fr; }
+  .cart-panel { position: static; max-height: none; }
 }
-@media(max-width: 600px) {
-  #mainContent { padding: 14px; }
-  .stat-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 600px) {
+  #mainContent { padding: 12px; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
   .form-row { grid-template-columns: 1fr; }
-  #header { padding: 0 14px; }
-  .hdr-clock, .hdr-db-badge { display: none; }
+  #header { padding: 0 10px; gap: 6px; }
+  .hdr-clock, .hdr-db-badge, .hdr-tenant-switch { display: none; }
 }
 </style>
 </head>
@@ -343,21 +435,26 @@ input:focus, select:focus, textarea:focus {
 
 <!-- ═══════════════════════════════ MULTI-TENANT CLIENT SELECTOR & LOGIN ═══════════════════════════════ -->
 <div id="portalScreen">
+  <div class="portal-topbar">
+    <div class="portal-wordmark">NexusServe<small>AMtechnexus billing</small></div>
+    <button class="btn btn-sm" onclick="openDbConfigModal()">Database</button>
+  </div>
+
   <div class="portal-card" id="portalCard">
     
     <!-- Step 1: Select Business Tenant Workspace -->
     <div id="tenantSelectView">
       <div class="portal-header">
-        <div class="portal-logo-pill">👑 Master Platform Portal · AMtechnexus</div>
-        <h1 class="portal-title">Workspaces &amp; Shops</h1>
-        <p class="portal-subtitle">Manage client workspaces or copy isolated customer login links</p>
+        <div class="portal-logo-pill">Master</div>
+        <h1 class="portal-title">Shops</h1>
+        <p class="portal-subtitle">Pick a client workspace to open the till.</p>
         
-        <div style="margin-top:12px;background:#f8fafc;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.78rem">
-          <div style="display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            <span style="font-weight:700;color:var(--text-muted)">Master Admin URL:</span>
-            <code style="font-family:'Space Mono',monospace;color:var(--text-main);font-weight:700" id="masterUrlDisplay">loading...</code>
+        <div class="portal-url-bar">
+          <div style="display:flex;align-items:center;gap:6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">
+            <span style="font-weight:650;color:var(--text-muted);flex-shrink:0">URL</span>
+            <code id="masterUrlDisplay">loading...</code>
           </div>
-          <button class="btn btn-outline btn-xs" style="padding:3px 8px;font-size:.72rem;white-space:nowrap" onclick="copyMasterLink()">📋 Copy</button>
+          <button class="btn btn-outline btn-sm" style="padding:3px 8px;font-size:.72rem;white-space:nowrap" onclick="copyMasterLink()">Copy</button>
         </div>
       </div>
 
@@ -366,8 +463,8 @@ input:focus, select:focus, textarea:focus {
       </div>
 
       <div class="portal-footer">
-        <button class="btn btn-outline btn-sm" onclick="openCreateTenantModal()">＋ New Customer Workspace</button>
-        <button class="btn btn-primary btn-sm" onclick="openDbConfigModal()">⚙ Database &amp; API Settings</button>
+        <button class="btn btn-outline btn-sm" onclick="openCreateTenantModal()">New shop</button>
+        <button class="btn btn-primary btn-sm" onclick="openDbConfigModal()">API settings</button>
       </div>
     </div>
 
@@ -375,53 +472,51 @@ input:focus, select:focus, textarea:focus {
     <div id="roleSelectView" style="display:none">
       <div class="portal-header">
         <div id="customerPortalPill" style="display:none;margin-bottom:8px">
-          <span style="background:var(--theme-light,#e2e8f0);color:var(--theme-primary,#0f172a);padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:800;border:1px solid var(--theme-primary)">
-            🏬 Dedicated Customer Shop Portal
-          </span>
+          <span class="role-badge-pill">Customer portal</span>
         </div>
-        <div id="activeTenantLogoBox" style="margin-bottom:10px"></div>
+        <div id="activeTenantLogoBox" style="margin-bottom:8px"></div>
         <h1 class="portal-title" id="activeTenantName">Customer Shop</h1>
-        <p class="portal-subtitle" id="activeTenantTagline">Point of Sale &amp; Inventory System</p>
+        <p class="portal-subtitle" id="activeTenantTagline">Point of Sale</p>
       </div>
-      <div style="padding: 24px;">
-        <button class="btn btn-primary" style="justify-content:center;padding:12px 18px;margin-bottom:16px;width:100%;font-size:.95rem" onclick="loginSuccess('admin')">
-          ⚡ 1-Click Launch as Admin
+      <div>
+        <button class="btn btn-primary" style="justify-content:center;padding:10px 14px;margin:12px 0 4px;width:100%" onclick="loginSuccess('admin')">
+          Open as admin
         </button>
 
-        <p style="font-size:.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:14px;letter-spacing:.05em">Or Select User Role &amp; Branch</p>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('admin')">
-            <span style="font-size:1.4rem">👑</span>
-            <div style="text-align:left"><div style="font-weight:700">Administrator</div><div style="font-size:.78rem;color:var(--text-muted)">Full business control, inventory, &amp; branding (PIN: 1234)</div></div>
+        <p style="font-size:.78rem;font-weight:650;color:var(--text-muted);margin:10px 0 0">Staff login</p>
+        <div class="role-row">
+          <button type="button" class="role-btn" onclick="selectRole('admin')">
+            <span class="role-key">ADM</span>
+            <div><div class="role-title">Administrator</div><div class="role-meta">Full access · PIN 1234</div></div>
           </button>
-          <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b1')">
-            <span style="font-size:1.4rem">🏪</span>
-            <div style="text-align:left"><div style="font-weight:700" id="b1RoleLbl">Branch 1</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing (PIN: 1111)</div></div>
+          <button type="button" class="role-btn" onclick="selectRole('b1')">
+            <span class="role-key">B1</span>
+            <div><div class="role-title" id="b1RoleLbl">Branch 1</div><div class="role-meta">Cashier · PIN 1111</div></div>
           </button>
-          <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b2')">
-            <span style="font-size:1.4rem">🏪</span>
-            <div style="text-align:left"><div style="font-weight:700" id="b2RoleLbl">Branch 2</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing (PIN: 2222)</div></div>
+          <button type="button" class="role-btn" onclick="selectRole('b2')">
+            <span class="role-key">B2</span>
+            <div><div class="role-title" id="b2RoleLbl">Branch 2</div><div class="role-meta">Cashier · PIN 2222</div></div>
           </button>
-          <button class="btn btn-outline" style="justify-content:flex-start;padding:14px 18px" onclick="selectRole('b3')">
-            <span style="font-size:1.4rem">🏪</span>
-            <div style="text-align:left"><div style="font-weight:700" id="b3RoleLbl">Branch 3</div><div style="font-size:.78rem;color:var(--text-muted)">Live POS cashier &amp; billing (PIN: 3333)</div></div>
+          <button type="button" class="role-btn" onclick="selectRole('b3')">
+            <span class="role-key">B3</span>
+            <div><div class="role-title" id="b3RoleLbl">Branch 3</div><div class="role-meta">Cashier · PIN 3333</div></div>
           </button>
         </div>
       </div>
-      <div class="portal-footer" style="justify-content:space-between">
-        <button class="btn btn-outline btn-sm" id="btnBackToMaster" onclick="backToTenantSelect()">← Switch Workspace</button>
-        <button class="btn btn-outline btn-sm" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL for this customer">🔗 Share Customer Link</button>
+      <div class="portal-footer">
+        <button class="btn btn-outline btn-sm" id="btnBackToMaster" onclick="backToTenantSelect()">All shops</button>
+        <button class="btn btn-outline btn-sm" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL for this customer">Copy shop link</button>
       </div>
     </div>
 
     <!-- Step 3: PIN Pad Entry -->
-    <div id="pinEntryView" style="display:none;padding:28px 24px;text-align:center">
+    <div id="pinEntryView" style="display:none;padding:20px 0;text-align:center">
       <div class="role-badge-pill" id="pinRolePill">Admin PIN</div>
-      <h2 style="font-size:1.3rem;font-weight:800;color:var(--text-main);margin-bottom:6px">Enter 4-Digit Security PIN</h2>
-      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">Default demo PIN: <span id="hintPin" style="font-weight:700;color:var(--theme-primary)">1234</span></p>
+      <h2 class="page-title" style="margin-bottom:6px">PIN</h2>
+      <p style="font-size:.82rem;color:var(--text-muted);margin-bottom:12px">Demo: <span id="hintPin" style="font-family:var(--num);font-weight:650;font-variant-numeric:tabular-nums">1234</span></p>
 
-      <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:16px;justify-content:center" onclick="quickDemoPin()">
-        ⚡ Auto-Fill Demo PIN &amp; Unlock
+      <button class="btn btn-primary btn-sm" style="width:100%;max-width:240px;margin:0 auto 14px;justify-content:center" onclick="quickDemoPin()">
+        Fill demo PIN
       </button>
 
       <div class="pin-dots">
@@ -441,12 +536,12 @@ input:focus, select:focus, textarea:focus {
         <button class="pin-btn" onclick="pinPress('7')">7</button>
         <button class="pin-btn" onclick="pinPress('8')">8</button>
         <button class="pin-btn" onclick="pinPress('9')">9</button>
-        <button class="pin-btn danger" onclick="pinClear()">✕</button>
+        <button class="pin-btn danger" onclick="pinClear()">CLR</button>
         <button class="pin-btn" onclick="pinPress('0')">0</button>
-        <button class="pin-btn danger" onclick="pinBack()">⌫</button>
+        <button class="pin-btn danger" onclick="pinBack()">DEL</button>
       </div>
 
-      <button class="btn btn-outline btn-sm" style="width:100%" onclick="backToRoleSelect()">← Cancel</button>
+      <button class="btn btn-outline btn-sm" style="width:100%;max-width:240px" onclick="backToRoleSelect()">Back</button>
     </div>
 
   </div>
@@ -464,64 +559,65 @@ input:focus, select:focus, textarea:focus {
     </div>
 
     <button class="hdr-tenant-switch" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL to share with client">
-      🔗 Customer Link
+      Customer link
     </button>
     <button class="hdr-tenant-switch" onclick="promptSwitchTenant()">
-      🏢 Switch Client
+      Switch client
     </button>
 
     <div class="hdr-branch-tag" id="hdrBranch">—</div>
     <div class="hdr-spacer"></div>
 
-    <div class="hdr-db-badge" id="hdrDbBadge">● Cloud DB</div>
+    <div class="hdr-db-badge" id="hdrDbBadge">DB · cloud</div>
     <div class="hdr-clock" id="hdrClock">00:00:00</div>
     <div class="hdr-role" id="hdrRole">Admin</div>
     <button class="hdr-logout" onclick="logout()">Logout</button>
   </header>
 
+  <div class="app-body">
   <nav id="navBar">
-    <div class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">📊 Dashboard</div>
-    <div class="nav-tab" data-tab="billing" onclick="switchTab('billing')">🧾 Live POS Billing</div>
-    <div class="nav-tab adm-only" data-tab="inventory" onclick="switchTab('inventory')">🗂 Products &amp; Prices</div>
-    <div class="nav-tab adm-only" data-tab="stock" onclick="switchTab('stock')">📦 Stock Entry</div>
-    <div class="nav-tab adm-only" data-tab="transfer" onclick="switchTab('transfer')">🔄 Multi-Branch Transfer</div>
-    <div class="nav-tab adm-only" data-tab="history" onclick="switchTab('history')">📋 Invoices</div>
-    <div class="nav-tab adm-only" data-tab="reports" onclick="switchTab('reports')">📈 Analytics &amp; Reports</div>
-    <div class="nav-tab adm-only" data-tab="admin" onclick="switchTab('admin')">🎨 Brand &amp; Shop Settings</div>
+    <div class="nav-tab active" data-tab="dashboard" onclick="switchTab('dashboard')">Dashboard</div>
+    <div class="nav-tab" data-tab="billing" onclick="switchTab('billing')">POS</div>
+    <div class="nav-tab adm-only" data-tab="inventory" onclick="switchTab('inventory')">Products</div>
+    <div class="nav-tab adm-only" data-tab="stock" onclick="switchTab('stock')">Stock</div>
+    <div class="nav-tab adm-only" data-tab="transfer" onclick="switchTab('transfer')">Transfers</div>
+    <div class="nav-tab adm-only" data-tab="history" onclick="switchTab('history')">Invoices</div>
+    <div class="nav-tab adm-only" data-tab="reports" onclick="switchTab('reports')">Reports</div>
+    <div class="nav-tab adm-only" data-tab="admin" onclick="switchTab('admin')">Settings</div>
   </nav>
 
   <div id="mainContent">
     
     <!-- ─── DASHBOARD ─── -->
     <div id="tab-dashboard" class="tab-content">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <div>
-          <h2 style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800;color:var(--text-main)">Dashboard Overview</h2>
-          <p style="font-size:.85rem;color:var(--text-muted)" id="dashSubTitle">Isolated client performance</p>
+          <h2 class="page-title">Dashboard</h2>
+          <p class="page-sub" id="dashSubTitle">Workspace performance</p>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="switchTab('billing')">＋ New Sale</button>
+        <button class="btn btn-primary btn-sm" onclick="switchTab('billing')">New sale</button>
       </div>
 
       <div class="stat-grid">
         <div class="stat-card">
           <div class="stat-num" id="ds-rev">0.00</div>
-          <div class="stat-label">Total Revenue</div>
-          <div class="stat-sub">Lifetime workspace sales</div>
+          <div class="stat-label">Revenue</div>
+          <div class="stat-sub">All time</div>
         </div>
         <div class="stat-card b-red">
           <div class="stat-num" id="ds-orders">0</div>
-          <div class="stat-label">Invoices Completed</div>
-          <div class="stat-sub">All branches combined</div>
+          <div class="stat-label">Bills</div>
+          <div class="stat-sub">All branches</div>
         </div>
         <div class="stat-card b-blue">
           <div class="stat-num" id="ds-avg">0.00</div>
-          <div class="stat-label">Avg Order Value</div>
-          <div class="stat-sub">Per completed transaction</div>
+          <div class="stat-label">Avg bill</div>
+          <div class="stat-sub">Per order</div>
         </div>
         <div class="stat-card b-green">
-          <div class="stat-num" style="font-size:1.3rem" id="ds-top">—</div>
-          <div class="stat-label">Top Selling Item</div>
-          <div class="stat-sub" id="ds-topSub">0 units sold</div>
+          <div class="stat-num" style="font-size:1.15rem" id="ds-top">—</div>
+          <div class="stat-label">Top item</div>
+          <div class="stat-sub" id="ds-topSub">0 sold</div>
         </div>
       </div>
 
@@ -548,7 +644,7 @@ input:focus, select:focus, textarea:focus {
       <div id="billingWrap">
         <div>
           <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-            <input type="text" id="menuSearch" placeholder="🔍 Search menu item or barcode..." oninput="renderMenuGrid()" style="flex:1;min-width:200px"/>
+            <input type="text" id="menuSearch" placeholder="Search item or barcode…" oninput="renderMenuGrid()" style="flex:1;min-width:200px"/>
             <select id="billingBranchSelect" onchange="changeBillingBranch(this.value)" style="width:200px">
               <option value="b1">Branch 1</option>
               <option value="b2">Branch 2</option>
@@ -568,7 +664,7 @@ input:focus, select:focus, textarea:focus {
         <!-- POS Cart Sidebar -->
         <div class="cart-panel">
           <div class="cart-hdr">
-            <div class="cart-hdr-title">🛒 Order Cart</div>
+            <div class="cart-hdr-title">Order</div>
             <button class="btn btn-sm btn-outline" style="color:#fff;border-color:rgba(255,255,255,.3);padding:4px 8px" onclick="clearCart()">Clear</button>
           </div>
           <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
@@ -582,8 +678,8 @@ input:focus, select:focus, textarea:focus {
             <div class="cart-row"><span>Subtotal</span><span id="cartSub">0.00</span></div>
             <div class="cart-row"><span id="cartTaxLbl">Tax / GST (5%)</span><span id="cartTax">0.00</span></div>
             <div class="cart-row total-row"><span>TOTAL</span><span id="cartTotal">0.00</span></div>
-            <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px;padding:12px;font-size:1rem" onclick="completeSale()">
-              🧾 Generate Invoice &amp; Print
+            <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:12px;padding:11px;font-size:.95rem" onclick="completeSale()">
+              Charge &amp; print
             </button>
           </div>
         </div>
@@ -592,12 +688,12 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── INVENTORY & PRODUCTS ─── -->
     <div id="tab-inventory" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px">
         <div>
-          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:800">Products &amp; Pricing</h2>
-          <p style="font-size:.85rem;color:var(--text-muted)">Manage catalog, cost, selling price and minimum alert thresholds</p>
+          <h2 class="page-title">Products</h2>
+          <p class="page-sub">Catalog, cost, sell price, and reorder alerts</p>
         </div>
-        <button class="btn btn-primary" onclick="openProductModal()">＋ Add New Product</button>
+        <button class="btn btn-primary" onclick="openProductModal()">Add product</button>
       </div>
 
       <div class="tbl-wrap">
@@ -625,12 +721,12 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── STOCK ENTRY ─── -->
     <div id="tab-stock" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px">
         <div>
-          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:800">Batch Stock Count Entry</h2>
-          <p style="font-size:.85rem;color:var(--text-muted)">Quickly overwrite inventory levels for daily audits</p>
+          <h2 class="page-title">Stock count</h2>
+          <p class="page-sub">Overwrite on-hand quantities for daily audits</p>
         </div>
-        <button class="btn btn-primary" onclick="saveStockEntry()">💾 Save All Stock Adjustments</button>
+        <button class="btn btn-primary" onclick="saveStockEntry()">Save adjustments</button>
       </div>
 
       <div class="tbl-wrap">
@@ -688,7 +784,7 @@ input:focus, select:focus, textarea:focus {
               <label>Notes / Reason</label>
               <input type="text" id="tfNote" placeholder="e.g. Daily restocking"/>
             </div>
-            <button class="btn btn-primary" onclick="confirmTransfer()">✓ Execute Stock Transfer</button>
+            <button class="btn btn-primary" onclick="confirmTransfer()">Transfer stock</button>
           </div>
         </div>
 
@@ -704,12 +800,12 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── SALES INVOICES HISTORY ─── -->
     <div id="tab-history" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px">
         <div>
-          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:800">Sales Invoices</h2>
-          <p style="font-size:.85rem;color:var(--text-muted)">Past orders and invoices generated for this client</p>
+          <h2 class="page-title">Invoices</h2>
+          <p class="page-sub">Past orders for this workspace</p>
         </div>
-        <button class="btn btn-green btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+        <button class="btn btn-green btn-sm" onclick="exportCSV()">Export CSV</button>
       </div>
 
       <div class="tbl-wrap">
@@ -732,12 +828,12 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── REPORTS ─── -->
     <div id="tab-reports" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px">
         <div>
-          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:800">Analytics &amp; Sales Reports</h2>
-          <p style="font-size:.85rem;color:var(--text-muted)">Financial summary and item movement metrics</p>
+          <h2 class="page-title">Reports</h2>
+          <p class="page-sub">Revenue and item movement</p>
         </div>
-        <button class="btn btn-green btn-sm" onclick="exportExcel()">📊 Export Excel</button>
+        <button class="btn btn-green btn-sm" onclick="exportExcel()">Export Excel</button>
       </div>
 
       <div class="tbl-wrap">
@@ -751,56 +847,52 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── BRANDING & SHOP CUSTOMIZER (CLIENT BRANDING & LOGO UPLOAD) ─── -->
     <div id="tab-admin" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
         <div>
-          <h2 style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800">Client Branding &amp; Store Setup</h2>
-          <p style="font-size:.85rem;color:var(--text-muted)">Customize logo, brand colors, currency, branch names, and security PINs</p>
+          <h2 class="page-title">Shop settings</h2>
+          <p class="page-sub">Logo, colors, currency, branches, and PINs</p>
         </div>
-        <button class="btn btn-primary" onclick="saveTenantBranding()">💾 Save Brand Settings</button>
+        <button class="btn btn-primary" onclick="saveTenantBranding()">Save settings</button>
       </div>
 
       <!-- Customer Direct Access URL Card -->
-      <div class="tbl-wrap" style="padding:20px;margin-bottom:20px;background:#f8fafc;border:1.5px solid var(--border)">
+      <div class="tbl-wrap" style="padding:16px;margin-bottom:18px">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
           <div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-              <span style="font-size:1.2rem">🔗</span>
-              <h3 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;margin:0">
-                Customer Direct Login URL
-              </h3>
-              <span class="tenant-badge" style="background:#e0f2fe;color:#0369a1;font-weight:700">Isolated Store URL</span>
+              <h3 class="section-title" style="margin:0">Customer login URL</h3>
+              <span class="tenant-badge">Isolated</span>
             </div>
-            <p style="font-size:.84rem;color:var(--text-muted);margin:0">
-              Share this dedicated link with your client or store cashiers. They will land directly into this shop with custom branding and complete data isolation.
+            <p class="page-sub" style="margin:0">
+              Share with the client or cashiers — opens this shop only.
             </p>
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-outline btn-sm" onclick="copyActiveTenantCustomerLink()">
-              📋 Copy Customer Link
+              Copy link
             </button>
             <button class="btn btn-primary btn-sm" onclick="openActiveTenantCustomerLink()">
-              🚀 Open In New Tab ↗
+              Open
             </button>
           </div>
         </div>
-        <div style="margin-top:12px;background:#ffffff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;display:flex;align-items:center;gap:10px">
-          <span style="font-size:.8rem;color:var(--text-muted);font-weight:700">STORE LINK:</span>
-          <code id="activeCustomerUrlCode" style="font-family:'Space Mono',monospace;font-size:.82rem;font-weight:700;color:var(--theme-primary);word-break:break-all"></code>
+        <div class="portal-url-bar" style="margin-top:12px">
+          <span style="font-size:.72rem;color:var(--text-muted);font-weight:650;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;flex-shrink:0">Store</span>
+          <code id="activeCustomerUrlCode" style="font-family:var(--mono);font-size:.78rem;font-weight:600;color:var(--theme-primary);word-break:break-all"></code>
         </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
         <!-- Logo & Identity Card -->
         <div class="tbl-wrap" style="padding:24px">
-          <h3 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;margin-bottom:16px">🖼 Logo &amp; Identity</h3>
+          <h3 class="section-title">Logo &amp; identity</h3>
           
           <div class="form-group" style="margin-bottom:16px">
             <label>Shop Logo Upload</label>
             <div class="branding-preview-card" onclick="document.getElementById('logoFileInput').click()">
               <div id="logoPreviewContainer">
-                <div style="font-size:2rem;margin-bottom:8px">📸</div>
-                <div style="font-weight:600;font-size:.9rem;color:var(--text-main)">Click to upload custom logo</div>
-                <div style="font-size:.78rem;color:var(--text-muted)">PNG, JPG, SVG or WebP format</div>
+                <div style="font-weight:600;font-size:.9rem;color:var(--text-main)">Upload logo</div>
+                <div style="font-size:.78rem;color:var(--text-muted)">PNG, JPG, SVG, or WebP</div>
               </div>
               <input type="file" id="logoFileInput" accept="image/*" style="display:none" onchange="handleLogoUpload(event)"/>
             </div>
@@ -824,21 +916,21 @@ input:focus, select:focus, textarea:focus {
 
         <!-- Color Scheme & Theme -->
         <div class="tbl-wrap" style="padding:24px">
-          <h3 style="font-family:'Playfair Display',serif;font-size:1.15rem;font-weight:700;margin-bottom:16px">🎨 Visual Theme &amp; Currencies</h3>
+          <h3 class="section-title">Theme &amp; currency</h3>
 
           <div class="form-row">
             <div class="form-group">
               <label>Brand Primary Color</label>
               <div style="display:flex;gap:8px;align-items:center">
                 <input type="color" id="adm-themeColor" style="width:50px;height:42px;padding:2px;cursor:pointer" onchange="previewColors()"/>
-                <input type="text" id="adm-themeColorHex" placeholder="#c8860a" oninput="document.getElementById('adm-themeColor').value=this.value; previewColors()"/>
+                <input type="text" id="adm-themeColorHex" placeholder="#e4a11b" oninput="document.getElementById('adm-themeColor').value=this.value; previewColors()"/>
               </div>
             </div>
             <div class="form-group">
               <label>Header Dark Accent</label>
               <div style="display:flex;gap:8px;align-items:center">
                 <input type="color" id="adm-accentColor" style="width:50px;height:42px;padding:2px;cursor:pointer" onchange="previewColors()"/>
-                <input type="text" id="adm-accentColorHex" placeholder="#3d1f0a" oninput="document.getElementById('adm-accentColor').value=this.value; previewColors()"/>
+                <input type="text" id="adm-accentColorHex" placeholder="#111111" oninput="document.getElementById('adm-accentColor').value=this.value; previewColors()"/>
               </div>
             </div>
           </div>
@@ -856,7 +948,7 @@ input:focus, select:focus, textarea:focus {
 
           <hr style="border:none;border-top:1px solid var(--border);margin:16px 0"/>
 
-          <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px">Branch Name Customization</h4>
+          <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:10px">Branch names</h4>
           <div class="form-row">
             <div class="form-group"><label>Branch 1</label><input type="text" id="adm-b1name" placeholder="Branch 1"/></div>
             <div class="form-group"><label>Branch 2</label><input type="text" id="adm-b2name" placeholder="Branch 2"/></div>
@@ -866,6 +958,7 @@ input:focus, select:focus, textarea:focus {
       </div>
     </div>
 
+  </div>
   </div>
 </div>
 
@@ -936,10 +1029,10 @@ input:focus, select:focus, textarea:focus {
           When deployed on Cloudflare Pages (<code>nexusserve.pages.dev</code>), the frontend connects to this backend API to sync with Neon PostgreSQL. If offline or unconfigured, it automatically runs in resilient browser storage.
         </p>
         <div class="form-group" style="margin-bottom:8px">
-          <input type="text" id="cfgApiBaseUrl" placeholder="https://ais-pre-g6ixkn5zaw4hpy4iwxmqc7-241779508615.asia-southeast1.run.app" style="font-family:'Space Mono',monospace;font-size:.82rem"/>
+          <input type="text" id="cfgApiBaseUrl" placeholder="https://ais-pre-g6ixkn5zaw4hpy4iwxmqc7-241779508615.asia-southeast1.run.app" style="font-family:var(--mono);font-size:.82rem"/>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-primary btn-sm" onclick="saveAndTestApiUrl()">⚡ Test &amp; Save Server URL</button>
+          <button class="btn btn-primary btn-sm" onclick="saveAndTestApiUrl()">Test &amp; save URL</button>
           <button class="btn btn-outline btn-sm" onclick="resetApiUrlToDefault()">↺ Reset Live Server</button>
           <span id="apiUrlTestStatus" style="font-size:.8rem;font-weight:700"></span>
         </div>
@@ -964,9 +1057,9 @@ input:focus, select:focus, textarea:focus {
       <div style="border-top:1.5px solid var(--border);padding-top:14px;margin-top:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:.85rem;font-weight:700;color:var(--text-main)">Neon SQL Schema (Optional Manual Run)</span>
-          <button class="btn btn-outline btn-sm" onclick="copyNeonSchemaSql()">📋 Copy SQL Script</button>
+          <button class="btn btn-outline btn-sm" onclick="copyNeonSchemaSql()">Copy SQL</button>
         </div>
-        <pre id="neonSchemaPre" style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:var(--radius-sm);font-family:'Space Mono',monospace;font-size:.75rem;max-height:160px;overflow-y:auto;white-space:pre">Loading SQL schema...</pre>
+        <pre id="neonSchemaPre" style="background:#0f172a;color:#f8fafc;padding:12px;border-radius:var(--radius-sm);font-family:var(--mono);font-size:.75rem;max-height:160px;overflow-y:auto;white-space:pre">Loading SQL schema...</pre>
       </div>
     </div>
     <div class="modal-footer">
@@ -1141,8 +1234,8 @@ const DEFAULT_TENANTS = [
     businessType: 'Bakery & Cake Shop',
     tagline: 'Freshly Baked Goodness & Artisan Cakes',
     currency: '₹',
-    themeColor: '#c8860a',
-    accentColor: '#3d1f0a',
+    themeColor: '#e4a11b',
+    accentColor: '#111111',
     logoUrl: '',
     gstRate: 5,
     b1name: 'Flagship Store',
@@ -1161,8 +1254,8 @@ const DEFAULT_TENANTS = [
     businessType: 'Cafe & Fast Food',
     tagline: 'Artisanal Coffee & Gourmet Street Food',
     currency: '$',
-    themeColor: '#2563eb',
-    accentColor: '#0f172a',
+    themeColor: '#245a8c',
+    accentColor: '#111111',
     logoUrl: '',
     gstRate: 8,
     b1name: 'Main Cafe',
@@ -1340,7 +1433,7 @@ function renderTenantList() {
     list.innerHTML = `
       <div style="text-align:center;padding:24px;color:var(--text-muted)">
         <p style="margin-bottom:12px">No customer workspaces found.</p>
-        <button class="btn btn-primary btn-sm" onclick="openCreateTenantModal()">＋ Create First Workspace</button>
+        <button class="btn btn-primary btn-sm" onclick="openCreateTenantModal()">Create workspace</button>
       </div>
     `;
     return;
@@ -1349,7 +1442,7 @@ function renderTenantList() {
   list.innerHTML = tenants.map(t => `
     <div class="tenant-item" onclick="chooseTenant('${t.id}')">
       <div class="tenant-avatar" style="border-color:${t.themeColor || '#cbd5e1'}">
-        ${t.logoUrl ? `<img src="${t.logoUrl}" alt="${t.name}"/>` : `<span>🏬</span>`}
+        ${t.logoUrl ? `<img src="${t.logoUrl}" alt="${t.name}"/>` : `<span>${(t.name || '?').charAt(0)}</span>`}
       </div>
       <div class="tenant-info">
         <div class="tenant-name">${t.name}</div>
@@ -1360,10 +1453,10 @@ function renderTenantList() {
           ${t.currency || '$'} Active
         </span>
         <button class="btn btn-sm btn-outline" style="padding:5px 9px;font-size:.76rem" title="Copy isolated customer login link" onclick="event.stopPropagation(); copyCustomerLink('${t.id}')">
-          🔗 Link
+          Link
         </button>
         <button class="btn btn-sm btn-primary" style="padding:5px 12px;font-size:.76rem" onclick="event.stopPropagation(); quickLaunchTenant('${t.id}')">
-          ⚡ Open
+          Open
         </button>
       </div>
     </div>
@@ -1398,10 +1491,10 @@ function chooseTenant(tenantId, isDirect = false) {
   const backBtn = document.getElementById('btnBackToMaster');
   if (isDirect || isDirectCustomerView) {
     if (pill) pill.style.display = 'block';
-    if (backBtn) backBtn.textContent = '← Central Platform Portal';
+    if (backBtn) backBtn.textContent = 'Master portal';
   } else {
     if (pill) pill.style.display = 'none';
-    if (backBtn) backBtn.textContent = '← Switch Workspace';
+    if (backBtn) backBtn.textContent = 'Switch workspace';
   }
 
   document.getElementById('activeTenantName').textContent = t.name;
@@ -1411,7 +1504,7 @@ function chooseTenant(tenantId, isDirect = false) {
   if (t.logoUrl) {
     logoBox.innerHTML = `<img src="${t.logoUrl}" style="max-height:55px;object-fit:contain"/>`;
   } else {
-    logoBox.innerHTML = `<div style="font-size:2.2rem">🏪</div>`;
+    logoBox.innerHTML = `<div style="font-family:var(--mono);font-size:1.4rem;font-weight:700;color:var(--theme-primary)">${(t.name || 'S').charAt(0)}</div>`;
   }
 
   document.getElementById('b1RoleLbl').textContent = t.b1name || 'Branch 1';
@@ -1607,11 +1700,14 @@ function promptSwitchTenant() {
 
 // ═══════════════ THEME APPLIER ═══════════════
 function applyTenantTheme(t) {
-  const primary = t.themeColor || '#c8860a';
-  const accent = t.accentColor || '#3d1f0a';
-  document.documentElement.style.setProperty('--theme-primary', primary);
-  document.documentElement.style.setProperty('--theme-accent', accent);
-  document.documentElement.style.setProperty('--theme-light', primary + '22');
+  const primary = t.themeColor || '#e4a11b';
+  const accent = t.accentColor || '#111111';
+  // Keep chrome/actions black; tenant color is the signal highlight only
+  document.documentElement.style.setProperty('--theme-primary', '#111111');
+  document.documentElement.style.setProperty('--theme-hover', '#2a2a2a');
+  document.documentElement.style.setProperty('--theme-accent', accent || '#111111');
+  document.documentElement.style.setProperty('--signal', primary);
+  document.documentElement.style.setProperty('--theme-light', primary + '33');
 }
 
 // ═══════════════ LOAD TENANT ISOLATED DATA ═══════════════
@@ -1893,15 +1989,15 @@ function showInvoiceModal(sale) {
   const bName = currentTenant[sale.branch + 'name'] || 'Branch 1';
 
   body.innerHTML = `
-    <div style="font-family:'Plus Jakarta Sans',sans-serif;color:#0f172a;padding:10px">
+    <div style="font-family:var(--font);color:#0f172a;padding:10px">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #e2e8f0;padding-bottom:16px;margin-bottom:16px">
         <div>
           ${currentTenant.logoUrl ? `<img src="${currentTenant.logoUrl}" style="max-height:48px;margin-bottom:8px"/>` : ''}
-          <h2 style="font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:900;color:${currentTenant.accentColor || '#0f172a'}">${currentTenant.name}</h2>
+          <h2 style="font-family:var(--font);font-size:1.5rem;font-weight:900;color:${currentTenant.accentColor || '#0f172a'}">${currentTenant.name}</h2>
           <div style="font-size:.85rem;color:#64748b">${bName} · ${currentTenant.tagline || ''}</div>
         </div>
         <div style="text-align:right">
-          <div style="font-family:'Space Mono',monospace;font-size:1.1rem;font-weight:800;color:var(--theme-primary)">${sale.billNo}</div>
+          <div style="font-family:var(--num);font-size:1.1rem;font-weight:650;color:var(--theme-primary);font-variant-numeric:tabular-nums">${sale.billNo}</div>
           <div style="font-size:.8rem;color:#64748b">${new Date(sale.ts || Date.now()).toLocaleString()}</div>
           <span class="badge badge-ok" style="margin-top:4px">PAID ✓</span>
         </div>
@@ -2249,7 +2345,7 @@ function renderHistory() {
   }
   body.innerHTML = sales.map(s => `
     <tr>
-      <td style="font-family:'Space Mono',monospace;font-weight:700">${s.billNo}</td>
+      <td style="font-family:var(--num);font-weight:650;font-variant-numeric:tabular-nums">${s.billNo}</td>
       <td style="font-size:.82rem">${new Date(s.ts).toLocaleString()}</td>
       <td><span class="badge badge-generic">${currentTenant[s.branch + 'name'] || s.branch}</span></td>
       <td>${s.customerName || s.custName || 'Walk-in'}</td>
@@ -2335,10 +2431,10 @@ function renderAdminSettings() {
   document.getElementById('adm-tenantName').value = currentTenant.name || '';
   document.getElementById('adm-tenantType').value = currentTenant.businessType || '';
   document.getElementById('adm-tenantTagline').value = currentTenant.tagline || '';
-  document.getElementById('adm-themeColor').value = currentTenant.themeColor || '#c8860a';
-  document.getElementById('adm-themeColorHex').value = currentTenant.themeColor || '#c8860a';
-  document.getElementById('adm-accentColor').value = currentTenant.accentColor || '#3d1f0a';
-  document.getElementById('adm-accentColorHex').value = currentTenant.accentColor || '#3d1f0a';
+  document.getElementById('adm-themeColor').value = currentTenant.themeColor || '#e4a11b';
+  document.getElementById('adm-themeColorHex').value = currentTenant.themeColor || '#e4a11b';
+  document.getElementById('adm-accentColor').value = currentTenant.accentColor || '#111111';
+  document.getElementById('adm-accentColorHex').value = currentTenant.accentColor || '#111111';
   document.getElementById('adm-currency').value = currentTenant.currency || '₹';
   document.getElementById('adm-gstRate').value = currentTenant.gstRate ?? 5;
   document.getElementById('adm-b1name').value = currentTenant.b1name || 'Branch 1';
@@ -2357,13 +2453,12 @@ function renderLogoPreview() {
   if (url) {
     wrap.innerHTML = `
       <img src="${url}" class="branding-logo-preview" alt="Uploaded Logo"/>
-      <div style="font-size:.82rem;font-weight:700;color:var(--theme-primary)">✓ Custom Logo Active (Click to Replace)</div>
+      <div style="font-size:.82rem;font-weight:650;color:var(--theme-primary)">Logo active — click to replace</div>
     `;
   } else {
     wrap.innerHTML = `
-      <div style="font-size:2rem;margin-bottom:8px">📸</div>
-      <div style="font-weight:600;font-size:.9rem;color:var(--text-main)">Click to upload custom logo</div>
-      <div style="font-size:.78rem;color:var(--text-muted)">PNG, JPG, SVG or WebP format</div>
+      <div style="font-weight:600;font-size:.9rem;color:var(--text-main)">Upload logo</div>
+      <div style="font-size:.78rem;color:var(--text-muted)">PNG, JPG, SVG, or WebP</div>
     `;
   }
 }
@@ -2384,8 +2479,10 @@ function handleLogoUpload(event) {
 function previewColors() {
   const primary = document.getElementById('adm-themeColor').value;
   const accent = document.getElementById('adm-accentColor').value;
-  document.documentElement.style.setProperty('--theme-primary', primary);
-  document.documentElement.style.setProperty('--theme-accent', accent);
+  document.documentElement.style.setProperty('--signal', primary);
+  document.documentElement.style.setProperty('--theme-light', primary + '33');
+  document.documentElement.style.setProperty('--theme-accent', accent || '#111111');
+  document.documentElement.style.setProperty('--theme-primary', '#111111');
 }
 
 async function saveTenantBranding() {
@@ -2487,7 +2584,7 @@ function openDbConfigModal() {
         if (titleEl) titleEl.textContent = '✓ Connected to Neon / PostgreSQL Cloud Database';
         if (descEl) descEl.textContent = 'Every client workspace has its own row-level tenant boundary with separate products, invoices, and audit trails.';
       } else {
-        if (titleEl) titleEl.textContent = '✓ Multi-Tenant Storage Layer Active (Zero-Config)';
+        if (titleEl) titleEl.textContent = 'Storage layer connected';
         if (descEl) descEl.textContent = 'Data is strictly partitioned per client ID across local storage and cloud fallback.';
       }
     })
