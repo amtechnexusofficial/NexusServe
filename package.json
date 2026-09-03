@@ -10,10 +10,16 @@
     "build": "node -e \"const fs=require('fs'); fs.mkdirSync('dist', {recursive:true}); fs.copyFileSync('index.html', 'dist/index.html');\""
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.0",
     "uuid": "^14.0.2"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.10"
   }
 }

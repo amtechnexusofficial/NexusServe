@@ -441,9 +441,30 @@ input:focus, select:focus, textarea:focus {
   </div>
 
   <div class="portal-card" id="portalCard">
+
+    <!-- Superadmin gate -->
+    <div id="superAdminLoginView">
+      <div class="portal-header">
+        <div class="portal-logo-pill">Master</div>
+        <h1 class="portal-title">Sign in</h1>
+        <p class="portal-subtitle">AMtechnexus console — manage client shops.</p>
+      </div>
+      <div style="padding:16px 0;display:flex;flex-direction:column;gap:12px">
+        <div class="form-group">
+          <label>Email</label>
+          <input type="text" id="saUser" autocomplete="username" placeholder="admin@amtechnexus.com" value="admin@amtechnexus.com"/>
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="saPass" autocomplete="current-password" placeholder="Password" onkeydown="if(event.key==='Enter') submitSuperAdminLogin()"/>
+        </div>
+        <button class="btn btn-primary" id="btnSaLogin" style="justify-content:center;width:100%" onclick="submitSuperAdminLogin()">Sign in</button>
+        <p id="saLoginError" style="display:none;color:var(--red);font-size:.82rem;font-weight:650"></p>
+      </div>
+    </div>
     
     <!-- Step 1: Select Business Tenant Workspace -->
-    <div id="tenantSelectView">
+    <div id="tenantSelectView" style="display:none">
       <div class="portal-header">
         <div class="portal-logo-pill">Master</div>
         <h1 class="portal-title">Shops</h1>
@@ -479,29 +500,12 @@ input:focus, select:focus, textarea:focus {
         <p class="portal-subtitle" id="activeTenantTagline">Point of Sale</p>
       </div>
       <div>
-        <button class="btn btn-primary" style="justify-content:center;padding:10px 14px;margin:12px 0 4px;width:100%" onclick="loginSuccess('admin')">
-          Open as admin
+        <button class="btn btn-primary" style="justify-content:center;padding:10px 14px;margin:12px 0 4px;width:100%" onclick="selectRole('admin')">
+          Continue as admin
         </button>
 
         <p style="font-size:.78rem;font-weight:650;color:var(--text-muted);margin:10px 0 0">Staff login</p>
-        <div class="role-row">
-          <button type="button" class="role-btn" onclick="selectRole('admin')">
-            <span class="role-key">ADM</span>
-            <div><div class="role-title">Administrator</div><div class="role-meta">Full access · PIN 1234</div></div>
-          </button>
-          <button type="button" class="role-btn" onclick="selectRole('b1')">
-            <span class="role-key">B1</span>
-            <div><div class="role-title" id="b1RoleLbl">Branch 1</div><div class="role-meta">Cashier · PIN 1111</div></div>
-          </button>
-          <button type="button" class="role-btn" onclick="selectRole('b2')">
-            <span class="role-key">B2</span>
-            <div><div class="role-title" id="b2RoleLbl">Branch 2</div><div class="role-meta">Cashier · PIN 2222</div></div>
-          </button>
-          <button type="button" class="role-btn" onclick="selectRole('b3')">
-            <span class="role-key">B3</span>
-            <div><div class="role-title" id="b3RoleLbl">Branch 3</div><div class="role-meta">Cashier · PIN 3333</div></div>
-          </button>
-        </div>
+        <div class="role-row" id="roleRow"></div>
       </div>
       <div class="portal-footer">
         <button class="btn btn-outline btn-sm" id="btnBackToMaster" onclick="backToTenantSelect()">All shops</button>
@@ -645,11 +649,7 @@ input:focus, select:focus, textarea:focus {
         <div>
           <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
             <input type="text" id="menuSearch" placeholder="Search item or barcode…" oninput="renderMenuGrid()" style="flex:1;min-width:200px"/>
-            <select id="billingBranchSelect" onchange="changeBillingBranch(this.value)" style="width:200px">
-              <option value="b1">Branch 1</option>
-              <option value="b2">Branch 2</option>
-              <option value="b3">Branch 3</option>
-            </select>
+            <select id="billingBranchSelect" onchange="changeBillingBranch(this.value)" style="width:200px"></select>
           </div>
 
           <div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px" id="catFilters">
@@ -704,9 +704,8 @@ input:focus, select:focus, textarea:focus {
               <th>Category</th>
               <th>Price</th>
               <th>Cost</th>
-              <th id="inv-b1h">Stock Br.1</th>
-              <th id="inv-b2h">Stock Br.2</th>
-              <th id="inv-b3h">Stock Br.3</th>
+              <!-- branch stock headers injected -->
+              <th id="inv-stock-heads" colspan="1" style="display:none"></th>
               <th>Min Alert</th>
               <th>Status</th>
               <th>Actions</th>
@@ -731,18 +730,7 @@ input:focus, select:focus, textarea:focus {
 
       <div class="tbl-wrap">
         <table>
-          <thead>
-            <tr>
-              <th>Product</th>
-              <th>Category</th>
-              <th id="se-b1h">Branch 1 — Set To</th>
-              <th id="se-b2h">Branch 2 — Set To</th>
-              <th id="se-b3h">Branch 3 — Set To</th>
-              <th>Current B1</th>
-              <th>Current B2</th>
-              <th>Current B3</th>
-            </tr>
-          </thead>
+          <thead id="stockEntryHead"></thead>
           <tbody id="stockEntryBody"></tbody>
         </table>
       </div>
@@ -761,19 +749,11 @@ input:focus, select:focus, textarea:focus {
             <div class="form-row">
               <div class="form-group">
                 <label>From Branch</label>
-                <select id="tfFrom" onchange="updateTransferPreview()">
-                  <option value="b1">Branch 1</option>
-                  <option value="b2">Branch 2</option>
-                  <option value="b3">Branch 3</option>
-                </select>
+                <select id="tfFrom" onchange="updateTransferPreview()"></select>
               </div>
               <div class="form-group">
                 <label>To Branch</label>
-                <select id="tfTo" onchange="updateTransferPreview()">
-                  <option value="b2">Branch 2</option>
-                  <option value="b1">Branch 1</option>
-                  <option value="b3">Branch 3</option>
-                </select>
+                <select id="tfTo" onchange="updateTransferPreview()"></select>
               </div>
             </div>
             <div class="form-group">
@@ -948,12 +928,9 @@ input:focus, select:focus, textarea:focus {
 
           <hr style="border:none;border-top:1px solid var(--border);margin:16px 0"/>
 
-          <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:10px">Branch names</h4>
-          <div class="form-row">
-            <div class="form-group"><label>Branch 1</label><input type="text" id="adm-b1name" placeholder="Branch 1"/></div>
-            <div class="form-group"><label>Branch 2</label><input type="text" id="adm-b2name" placeholder="Branch 2"/></div>
-          </div>
-          <div class="form-group"><label>Branch 3</label><input type="text" id="adm-b3name" placeholder="Branch 3"/></div>
+          <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:10px">Branches</h4>
+          <div id="admBranchesList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+          <button type="button" class="btn btn-outline btn-sm" onclick="addAdminBranchRow()">Add branch</button>
         </div>
       </div>
     </div>
@@ -1106,11 +1083,7 @@ input:focus, select:focus, textarea:focus {
           <input type="text" id="pm-unit" value="pcs" placeholder="pcs, kg, box"/>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group"><label id="pm-b1lbl">Branch 1 Initial Stock</label><input type="number" id="pm-b1" value="10"/></div>
-        <div class="form-group"><label id="pm-b2lbl">Branch 2 Initial Stock</label><input type="number" id="pm-b2" value="10"/></div>
-      </div>
-      <div class="form-group"><label id="pm-b3lbl">Branch 3 Initial Stock</label><input type="number" id="pm-b3" value="5"/></div>
+      <div id="pmStockFields" style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px"></div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('productModal')">Cancel</button>
@@ -1199,28 +1172,162 @@ async function apiFetch(endpoint, options = {}) {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6500);
+    const headers = {
+      'Accept': 'application/json',
+      ...(options.headers || {})
+    };
+    if (options.body && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
+    }
+    const token = getAuthToken();
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+
     const res = await fetch(url, {
       ...options,
       signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-        ...(options.headers || {})
-      }
+      headers
     });
     clearTimeout(timeoutId);
+
+    const contentType = res.headers.get('content-type') || '';
+    let payload = null;
+    if (contentType.includes('application/json')) {
+      payload = await res.json();
+    } else if (contentType.includes('text/')) {
+      payload = await res.text();
+    }
+
     if (!res.ok) {
       console.warn(`apiFetch [${options.method || 'GET'}] ${url} returned ${res.status}`);
-      return null;
+      return payload && typeof payload === 'object'
+        ? { ...payload, success: false, status: res.status }
+        : { success: false, status: res.status, error: 'Request failed' };
     }
-    const contentType = res.headers.get('content-type') || '';
-    if (!contentType.includes('application/json') && !contentType.includes('text/')) {
-      return null;
-    }
-    return await res.json();
+    return payload;
   } catch (err) {
     console.warn(`apiFetch error for ${url}:`, err.message);
     return null;
   }
+}
+
+const AUTH_TOKEN_KEY = 'omni_token';
+const SUPER_TOKEN_KEY = 'omni_super_token';
+
+function getAuthToken() {
+  return sessionStorage.getItem(AUTH_TOKEN_KEY) || '';
+}
+function setAuthToken(token) {
+  if (token) sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+  else sessionStorage.removeItem(AUTH_TOKEN_KEY);
+}
+function getSuperToken() {
+  return sessionStorage.getItem(SUPER_TOKEN_KEY) || '';
+}
+function setSuperToken(token) {
+  if (token) sessionStorage.setItem(SUPER_TOKEN_KEY, token);
+  else sessionStorage.removeItem(SUPER_TOKEN_KEY);
+}
+function clearSessionAuth() {
+  setAuthToken('');
+}
+
+function getBranches(tenant = currentTenant) {
+  if (!tenant) return [{ id: 'b1', name: 'Branch 1', sortOrder: 0 }];
+  if (Array.isArray(tenant.branches) && tenant.branches.length) {
+    return [...tenant.branches].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  }
+  const out = [];
+  for (let i = 1; i <= 3; i++) {
+    const id = 'b' + i;
+    out.push({ id, name: tenant[id + 'name'] || ('Branch ' + i), sortOrder: i - 1 });
+  }
+  return out;
+}
+
+function getProductStock(product, branchId) {
+  if (!product) return 0;
+  if (product.stock && product.stock[branchId] != null) return Number(product.stock[branchId]) || 0;
+  return Number(product[branchId + 'Stock']) || 0;
+}
+
+function setProductStockLocal(product, branchId, qty) {
+  const n = Math.max(0, Number(qty) || 0);
+  if (!product.stock) product.stock = {};
+  product.stock[branchId] = n;
+  if (/^b[1-9]\d*$/.test(branchId)) product[branchId + 'Stock'] = n;
+  return n;
+}
+
+function branchName(branchId, tenant = currentTenant) {
+  if (branchId === 'admin') return 'Admin';
+  const b = getBranches(tenant).find(x => x.id === branchId);
+  return b ? b.name : (tenant && tenant[branchId + 'name']) || branchId;
+}
+
+function fillBranchSelect(selectEl, selected) {
+  if (!selectEl) return;
+  const branches = getBranches();
+  const cur = selected || selectEl.value || (branches[0] && branches[0].id);
+  selectEl.innerHTML = branches.map(b =>
+    `<option value="${b.id}" ${b.id === cur ? 'selected' : ''}>${b.name}</option>`
+  ).join('');
+}
+
+function changeBillingBranch(val) {
+  renderMenuGrid();
+  renderCart();
+}
+
+
+function showSuperAdminLogin() {
+  const sa = document.getElementById('superAdminLoginView');
+  const ts = document.getElementById('tenantSelectView');
+  if (sa) sa.style.display = 'block';
+  if (ts) ts.style.display = 'none';
+  const rs = document.getElementById('roleSelectView');
+  const ps = document.getElementById('pinEntryView');
+  if (rs) rs.style.display = 'none';
+  if (ps) ps.style.display = 'none';
+}
+
+function showTenantSelect() {
+  const sa = document.getElementById('superAdminLoginView');
+  const ts = document.getElementById('tenantSelectView');
+  if (sa) sa.style.display = 'none';
+  if (ts) ts.style.display = 'block';
+  document.getElementById('roleSelectView').style.display = 'none';
+  document.getElementById('pinEntryView').style.display = 'none';
+}
+
+async function submitSuperAdminLogin() {
+  const username = document.getElementById('saUser')?.value.trim();
+  const password = document.getElementById('saPass')?.value || '';
+  const errEl = document.getElementById('saLoginError');
+  const btn = document.getElementById('btnSaLogin');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
+
+  const data = await apiFetch('/api/superadmin/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password })
+  });
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
+
+  if (!data || !data.success || !data.token) {
+    if (errEl) {
+      errEl.style.display = 'block';
+      errEl.textContent = (data && data.error) || 'Invalid credentials';
+    }
+    return;
+  }
+
+  setSuperToken(data.token);
+  setAuthToken(data.token);
+  document.getElementById('saPass').value = '';
+  showTenantSelect();
+  await loadTenants({ skipRouting: true, requireAuth: true });
+  toast('Signed in to master console', 'ok');
 }
 
 // Built-in starter customer templates
@@ -1375,25 +1482,62 @@ function openActiveTenantCustomerLink() {
 // ═══════════════ TENANT WORKSPACE MANAGEMENT ═══════════════
 let isDirectCustomerView = false;
 
-async function loadTenants() {
-  // Always initialize from fast local storage first
-  tenants = getLocalTenants();
+async function loadTenants(opts = {}) {
+  const { skipRouting = false, requireAuth = true } = opts;
+
+  if (!skipRouting) {
+    const params = new URLSearchParams(window.location.search);
+    const target = params.get('workspace') || params.get('shop') || params.get('tenant') || params.get('t');
+    if (target) {
+      isDirectCustomerView = true;
+      document.getElementById('superAdminLoginView').style.display = 'none';
+      const pub = await apiFetch(`/api/tenants/${encodeURIComponent(target)}/public`);
+      if (pub && pub.success && pub.tenant) {
+        currentTenant = pub.tenant;
+        const idx = tenants.findIndex(x => x.id === pub.tenant.id);
+        if (idx >= 0) tenants[idx] = pub.tenant; else tenants.push(pub.tenant);
+        saveLocalTenant(pub.tenant);
+        chooseTenant(pub.tenant.id, true);
+        return;
+      }
+      tenants = getLocalTenants();
+      if (handleInitialRouting()) return;
+      toast('Shop not found', 'err');
+      return;
+    }
+  }
+
+  if (requireAuth && !getAuthToken()) {
+    const superTok = getSuperToken();
+    if (superTok) setAuthToken(superTok);
+  }
+  if (requireAuth && !getAuthToken()) {
+    showSuperAdminLogin();
+    return;
+  }
+
+  showTenantSelect();
+  tenants = getLocalTenants().map(t => {
+    const { password, pins, ...safe } = t;
+    return safe;
+  });
   renderTenantList();
 
-  // Check URL routing: ?workspace=xyz
-  const routed = handleInitialRouting();
-  if (routed) return;
-
-  // Background fetch from cloud API
   try {
     const data = await apiFetch('/api/tenants');
+    if (data && data.status === 401) {
+      setAuthToken('');
+      setSuperToken('');
+      showSuperAdminLogin();
+      return;
+    }
     if (data && data.success && Array.isArray(data.tenants)) {
-      // Merge remote with local tenants
       const mergedMap = new Map();
       tenants.forEach(t => mergedMap.set(t.id, t));
       data.tenants.forEach(t => {
-        mergedMap.set(t.id, { ...(mergedMap.get(t.id) || {}), ...t });
-        saveLocalTenant(t);
+        const { password, pins, ...safe } = t;
+        mergedMap.set(safe.id, { ...(mergedMap.get(safe.id) || {}), ...safe });
+        saveLocalTenant(safe);
       });
       tenants = Array.from(mergedMap.values());
       try { localStorage.setItem('omni_tenants', JSON.stringify(tenants)); } catch(e) {}
@@ -1464,21 +1608,18 @@ function renderTenantList() {
 }
 
 function quickLaunchTenant(tenantId) {
-  const t = tenants.find(x => x.id === tenantId);
-  if (!t) return;
-  currentTenant = t;
-  applyTenantTheme(t);
-  loginSuccess('admin');
-  toast(`Entered ${t.name} workspace as Admin`, 'ok');
+  chooseTenant(tenantId);
 }
 
 function quickDemoPin() {
-  const expectedPin = (currentTenant.pins && currentTenant.pins[pinRole]) || (pinRole === 'admin' ? '1234' : '1111');
-  pinInput = expectedPin;
+  const demos = { admin: '1234', b1: '1111', b2: '2222', b3: '3333' };
+  const branches = getBranches();
+  branches.forEach((b, i) => {
+    if (!demos[b.id]) demos[b.id] = String(1111 * (i + 1)).slice(0, 4);
+  });
+  pinInput = demos[pinRole] || '1234';
   updateDots();
-  setTimeout(() => {
-    verifyPin();
-  }, 150);
+  setTimeout(() => verifyPin(), 150);
 }
 
 function chooseTenant(tenantId, isDirect = false) {
@@ -1497,6 +1638,7 @@ function chooseTenant(tenantId, isDirect = false) {
     if (backBtn) backBtn.textContent = 'Switch workspace';
   }
 
+  document.getElementById('superAdminLoginView').style.display = 'none';
   document.getElementById('activeTenantName').textContent = t.name;
   document.getElementById('activeTenantTagline').textContent = t.tagline || t.businessType || 'POS & Inventory';
   
@@ -1507,22 +1649,46 @@ function chooseTenant(tenantId, isDirect = false) {
     logoBox.innerHTML = `<div style="font-family:var(--mono);font-size:1.4rem;font-weight:700;color:var(--theme-primary)">${(t.name || 'S').charAt(0)}</div>`;
   }
 
-  document.getElementById('b1RoleLbl').textContent = t.b1name || 'Branch 1';
-  document.getElementById('b2RoleLbl').textContent = t.b2name || 'Branch 2';
-  document.getElementById('b3RoleLbl').textContent = t.b3name || 'Branch 3';
+  renderRoleButtons();
 
   document.getElementById('tenantSelectView').style.display = 'none';
   document.getElementById('roleSelectView').style.display = 'block';
+  document.getElementById('pinEntryView').style.display = 'none';
 }
+
+function renderRoleButtons() {
+  const row = document.getElementById('roleRow');
+  if (!row || !currentTenant) return;
+  const branches = getBranches(currentTenant);
+  let html = `
+    <button type="button" class="role-btn" onclick="selectRole('admin')">
+      <span class="role-key">ADM</span>
+      <div><div class="role-title">Administrator</div><div class="role-meta">Full access</div></div>
+    </button>`;
+  for (const b of branches) {
+    const key = String(b.id).slice(0, 3).toUpperCase();
+    html += `
+    <button type="button" class="role-btn" onclick="selectRole('${b.id}')">
+      <span class="role-key">${key}</span>
+      <div><div class="role-title">${b.name}</div><div class="role-meta">Cashier</div></div>
+    </button>`;
+  }
+  row.innerHTML = html;
+}
+
 
 function backToTenantSelect() {
   if (isDirectCustomerView) {
     window.location.href = window.location.pathname;
     return;
   }
-  document.getElementById('tenantSelectView').style.display = 'block';
   document.getElementById('roleSelectView').style.display = 'none';
   document.getElementById('pinEntryView').style.display = 'none';
+  if (getSuperToken() || getAuthToken()) {
+    showTenantSelect();
+  } else {
+    showSuperAdminLogin();
+  }
 }
 
 function openCreateTenantModal() {
@@ -1551,6 +1717,11 @@ async function submitCreateTenant() {
   const cleanId = `${baseSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
   const code = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'pos';
 
+  const defaultBranches = [
+    { id: 'b1', name: 'Main Branch', sortOrder: 0 },
+    { id: 'b2', name: 'Counter 2', sortOrder: 1 },
+    { id: 'b3', name: 'Delivery Unit', sortOrder: 2 }
+  ];
   const newTenantObj = {
     id: cleanId,
     name,
@@ -1564,6 +1735,7 @@ async function submitCreateTenant() {
     accentColor: '#0f172a',
     logoUrl: '',
     gstRate: 5,
+    branches: defaultBranches,
     b1name: 'Main Branch',
     b2name: 'Counter 2',
     b3name: 'Delivery Unit',
@@ -1580,7 +1752,7 @@ async function submitCreateTenant() {
     const data = await apiFetch('/api/tenants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, businessType, currency, themeColor, adminPin })
+      body: JSON.stringify({ name, businessType, currency, themeColor, adminPin, branches: defaultBranches })
     });
     
     if (data && data.success && data.tenant) {
@@ -1609,16 +1781,14 @@ function selectRole(role) {
   pinRole = role;
   pinInput = '';
   updateDots();
-  const roleNames = {
-    admin: 'Administrator',
-    b1: currentTenant.b1name || 'Branch 1',
-    b2: currentTenant.b2name || 'Branch 2',
-    b3: currentTenant.b3name || 'Branch 3'
-  };
-  document.getElementById('pinRolePill').textContent = roleNames[role] || role;
-  
-  const expectedPin = (currentTenant.pins && currentTenant.pins[role]) || '1234';
-  document.getElementById('hintPin').textContent = expectedPin;
+  document.getElementById('pinRolePill').textContent =
+    role === 'admin' ? 'Administrator' : branchName(role);
+
+  const demos = { admin: '1234', b1: '1111', b2: '2222', b3: '3333' };
+  getBranches().forEach((b, i) => {
+    if (!demos[b.id]) demos[b.id] = String(1111 * (i + 1)).slice(0, 4);
+  });
+  document.getElementById('hintPin').textContent = demos[role] || '••••';
 
   document.getElementById('roleSelectView').style.display = 'none';
   document.getElementById('pinEntryView').style.display = 'block';
@@ -1647,17 +1817,29 @@ function updateDots() {
 }
 
 async function verifyPin() {
-  const correct = (currentTenant.pins && currentTenant.pins[pinRole]) || (pinRole === 'admin' ? '1234' : '1111');
-  if (pinInput === correct) {
-    loginSuccess(pinRole);
-  } else {
-    toast('Invalid PIN. Please try again.', 'err');
+  if (!currentTenant) return;
+  const data = await apiFetch(`/api/tenants/${encodeURIComponent(currentTenant.id)}/verify-pin`, {
+    method: 'POST',
+    body: JSON.stringify({ role: pinRole, pin: pinInput })
+  });
+
+  if (!data || !data.success || !data.token) {
+    toast((data && data.error) || 'Incorrect PIN', 'err');
     pinInput = '';
     updateDots();
+    return;
   }
+
+  setAuthToken(data.token);
+  if (data.tenant) currentTenant = { ...currentTenant, ...data.tenant };
+  await loginSuccess(pinRole);
 }
 
 async function loginSuccess(role) {
+  if (!getAuthToken()) {
+    toast('Sign in required', 'err');
+    return;
+  }
   currentRole = role;
   document.getElementById('portalScreen').style.display = 'none';
   document.getElementById('appScreen').classList.add('show');
@@ -1673,9 +1855,8 @@ async function loginSuccess(role) {
     logoContainer.innerHTML = `<span style="font-size:1.4rem">🏬</span>`;
   }
 
-  const roleNames = { admin: 'Admin', b1: currentTenant.b1name || 'Branch 1', b2: currentTenant.b2name || 'Branch 2', b3: currentTenant.b3name || 'Branch 3' };
-  document.getElementById('hdrRole').textContent = roleNames[role] || role;
-  document.getElementById('hdrBranch').textContent = role === 'admin' ? 'All Branches' : (currentTenant[role + 'name'] || role);
+  document.getElementById('hdrRole').textContent = role === 'admin' ? 'Admin' : branchName(role);
+  document.getElementById('hdrBranch').textContent = role === 'admin' ? 'All Branches' : branchName(role);
 
   // Admin access control
   document.querySelectorAll('.adm-only').forEach(el => {
@@ -1691,7 +1872,21 @@ function logout() {
   cart = [];
   document.getElementById('appScreen').classList.remove('show');
   document.getElementById('portalScreen').style.display = 'flex';
-  backToTenantSelect();
+
+  clearSessionAuth();
+  if (isDirectCustomerView) {
+    if (currentTenant) chooseTenant(currentTenant.id, true);
+    else showSuperAdminLogin();
+    return;
+  }
+  const superTok = getSuperToken();
+  if (superTok) {
+    setAuthToken(superTok);
+    showTenantSelect();
+    loadTenants({ skipRouting: true, requireAuth: true });
+  } else {
+    showSuperAdminLogin();
+  }
 }
 
 function promptSwitchTenant() {
@@ -1730,6 +1925,8 @@ async function loadTenantData() {
       sales = data.sales || sales;
       stockLogs = data.stockLogs || stockLogs;
       transfers = data.transfers || transfers;
+      if (data.tenant) currentTenant = { ...currentTenant, ...data.tenant };
+      if (data.branches) currentTenant.branches = data.branches;
       saveLocalData(currentTenant.id, { products, sales, stockLogs, transfers });
       refreshActiveView();
     }
@@ -1810,9 +2007,10 @@ function renderDashboard() {
   const lowList = [];
   products.forEach(p => {
     const reorder = p.reorder || 5;
-    if ((p.b1Stock || 0) <= reorder) lowList.push({ name: p.name, branch: currentTenant.b1name || 'Branch 1', stock: p.b1Stock || 0 });
-    if ((p.b2Stock || 0) <= reorder) lowList.push({ name: p.name, branch: currentTenant.b2name || 'Branch 2', stock: p.b2Stock || 0 });
-    if ((p.b3Stock || 0) <= reorder) lowList.push({ name: p.name, branch: currentTenant.b3name || 'Branch 3', stock: p.b3Stock || 0 });
+    getBranches().forEach(b => {
+      const stock = getProductStock(p, b.id);
+      if (stock <= reorder) lowList.push({ name: p.name, branch: b.name, stock });
+    });
   });
   const lowBody = document.getElementById('dashLowTbl');
   if (lowList.length === 0) {
@@ -1831,6 +2029,7 @@ function renderDashboard() {
 
 // ═══════════════ 2. BILLING (POS) ═══════════════
 function renderBillingTab() {
+  fillBranchSelect(document.getElementById('billingBranchSelect'));
   const cats = ['all', ...new Set(products.map(p => p.cat).filter(Boolean))];
   const catWrap = document.getElementById('catFilters');
   catWrap.innerHTML = cats.map(c => `
@@ -1847,7 +2046,7 @@ function filterCat(c) { activeCat = c; renderBillingTab(); }
 
 function renderMenuGrid() {
   const q = document.getElementById('menuSearch')?.value?.toLowerCase() || '';
-  const branchKey = (document.getElementById('billingBranchSelect')?.value || 'b1') + 'Stock';
+  const branchId = document.getElementById('billingBranchSelect')?.value || (getBranches()[0] && getBranches()[0].id) || 'b1';
   
   let list = products.filter(p => {
     if (activeCat !== 'all' && p.cat !== activeCat) return false;
@@ -1862,7 +2061,7 @@ function renderMenuGrid() {
   }
 
   grid.innerHTML = list.map(p => {
-    const stk = p[branchKey] || 0;
+    const stk = getProductStock(p, branchId);
     const oos = stk <= 0;
     return `
       <div class="menu-card ${oos ? 'oos' : ''}" onclick="addToCart('${p.id}')">
@@ -1961,11 +2160,8 @@ async function completeSale() {
 
   // Deduct inventory quantities locally
   cart.forEach(item => {
-    const prod = curData.products.find(p => p.id === item.productId);
-    if (prod) {
-      const brKey = (branch || 'b1') + 'Stock';
-      prod[brKey] = Math.max(0, (prod[brKey] || 0) - (item.qty || 1));
-    }
+    const prod = curData.products.find(p => p.id === item.id || p.id === item.productId);
+    if (prod) setProductStockLocal(prod, branch, getProductStock(prod, branch) - (item.qty || 1));
   });
   saveLocalData(currentTenant.id, curData);
 
@@ -1986,7 +2182,7 @@ async function completeSale() {
 
 function showInvoiceModal(sale) {
   const body = document.getElementById('invoiceModalBody');
-  const bName = currentTenant[sale.branch + 'name'] || 'Branch 1';
+  const bName = branchName(sale.branch);
 
   body.innerHTML = `
     <div style="font-family:var(--font);color:#0f172a;padding:10px">
@@ -2044,65 +2240,58 @@ function showInvoiceModal(sale) {
 
 // ═══════════════ 3. INVENTORY CRUD ═══════════════
 function renderInventory() {
-  const b1n = currentTenant.b1name || 'Branch 1';
-  const b2n = currentTenant.b2name || 'Branch 2';
-  const b3n = currentTenant.b3name || 'Branch 3';
-
-  document.getElementById('inv-b1h').textContent = `Stock ${b1n}`;
-  document.getElementById('inv-b2h').textContent = `Stock ${b2n}`;
-  document.getElementById('inv-b3h').textContent = `Stock ${b3n}`;
-
+  const branches = getBranches();
+  const headRow = document.querySelector('#tab-inventory thead tr');
+  if (headRow) {
+    headRow.innerHTML = `
+      <th>Item Name</th><th>Category</th><th>Price</th><th>Cost</th>
+      ${branches.map(b => `<th>Stock · ${b.name}</th>`).join('')}
+      <th>Min Alert</th><th>Status</th><th>Actions</th>`;
+  }
   const body = document.getElementById('inventoryBody');
-  if (products.length === 0) {
-    body.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px">No products in catalog</td></tr>';
+  if (!products.length) {
+    body.innerHTML = `<tr><td colspan="${7 + branches.length}" style="text-align:center;padding:24px;color:var(--text-muted)">No products yet</td></tr>`;
     return;
   }
-
   body.innerHTML = products.map(p => {
     const reorder = p.reorder || 5;
-    const ok = (p.b1Stock || 0) > reorder && (p.b2Stock || 0) > reorder;
+    const stocks = branches.map(b => getProductStock(p, b.id));
+    const ok = stocks.every(s => s > reorder);
     return `
       <tr>
         <td style="font-weight:700">${p.name}</td>
-        <td><span class="badge badge-generic">${p.cat}</span></td>
+        <td><span class="badge badge-generic">${p.cat || ''}</span></td>
         <td style="font-weight:700;color:var(--theme-primary)">${fmtMoney(p.price)}</td>
         <td style="color:var(--text-muted)">${fmtMoney(p.cost || 0)}</td>
-        <td style="font-weight:600;color:${(p.b1Stock || 0) <= reorder ? 'var(--red)' : 'inherit'}">${p.b1Stock || 0}</td>
-        <td style="font-weight:600;color:${(p.b2Stock || 0) <= reorder ? 'var(--red)' : 'inherit'}">${p.b2Stock || 0}</td>
-        <td style="font-weight:600;color:${(p.b3Stock || 0) <= reorder ? 'var(--red)' : 'inherit'}">${p.b3Stock || 0}</td>
+        ${branches.map((b, i) => `<td style="font-weight:600;color:${stocks[i] <= reorder ? 'var(--red)' : 'inherit'}">${stocks[i]}</td>`).join('')}
         <td>${reorder}</td>
         <td><span class="badge ${ok ? 'badge-ok' : 'badge-low'}">${ok ? 'IN STOCK' : 'LOW'}</span></td>
         <td>
-          <button class="btn btn-sm btn-outline" onclick="openProductModal('${p.id}')">✏ Edit</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">🗑</button>
+          <button class="btn btn-sm btn-outline" onclick="openProductModal('${p.id}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">Del</button>
         </td>
-      </tr>
-    `;
+      </tr>`;
   }).join('');
 }
 
 function openProductModal(id = null) {
   editProductId = id;
   document.getElementById('productModalTitle').textContent = id ? 'Edit Product' : 'Add New Product';
-  const b1n = currentTenant.b1name || 'Branch 1';
-  const b2n = currentTenant.b2name || 'Branch 2';
-  const b3n = currentTenant.b3name || 'Branch 3';
-  document.getElementById('pm-b1lbl').textContent = `${b1n} Stock`;
-  document.getElementById('pm-b2lbl').textContent = `${b2n} Stock`;
-  document.getElementById('pm-b3lbl').textContent = `${b3n} Stock`;
+  const branches = getBranches();
+  const stockWrap = document.getElementById('pmStockFields');
+  const p = id ? products.find(x => x.id === id) : null;
+  stockWrap.innerHTML = branches.map(b => {
+    const val = p ? getProductStock(p, b.id) : 10;
+    return `<div class="form-group"><label>${b.name} stock</label><input type="number" data-branch-stock="${b.id}" value="${val}"/></div>`;
+  }).join('');
 
-  if (id) {
-    const p = products.find(x => x.id === id);
-    if (!p) return;
+  if (p) {
     document.getElementById('pm-name').value = p.name;
-    document.getElementById('pm-cat').value = p.cat;
+    document.getElementById('pm-cat').value = p.cat || '';
     document.getElementById('pm-price').value = p.price;
     document.getElementById('pm-cost').value = p.cost || 0;
     document.getElementById('pm-reorder').value = p.reorder || 5;
     document.getElementById('pm-unit').value = p.unit || 'pcs';
-    document.getElementById('pm-b1').value = p.b1Stock || 0;
-    document.getElementById('pm-b2').value = p.b2Stock || 0;
-    document.getElementById('pm-b3').value = p.b3Stock || 0;
   } else {
     document.getElementById('pm-name').value = '';
     document.getElementById('pm-cat').value = '';
@@ -2110,9 +2299,6 @@ function openProductModal(id = null) {
     document.getElementById('pm-cost').value = '';
     document.getElementById('pm-reorder').value = '5';
     document.getElementById('pm-unit').value = 'pcs';
-    document.getElementById('pm-b1').value = '15';
-    document.getElementById('pm-b2').value = '15';
-    document.getElementById('pm-b3').value = '10';
   }
   openModal('productModal');
 }
@@ -2124,46 +2310,30 @@ async function saveProduct() {
   const cost = parseFloat(document.getElementById('pm-cost').value) || 0;
   const reorder = parseInt(document.getElementById('pm-reorder').value) || 5;
   const unit = document.getElementById('pm-unit').value.trim() || 'pcs';
-  const b1Stock = parseInt(document.getElementById('pm-b1').value) || 0;
-  const b2Stock = parseInt(document.getElementById('pm-b2').value) || 0;
-  const b3Stock = parseInt(document.getElementById('pm-b3').value) || 0;
-
   if (!name || !price) { toast('Name and Price are required', 'err'); return; }
 
-  const payload = { name, cat, price, cost, reorder, unit, b1Stock, b2Stock, b3Stock };
+  const stock = {};
+  document.querySelectorAll('#pmStockFields [data-branch-stock]').forEach(inp => {
+    stock[inp.getAttribute('data-branch-stock')] = parseInt(inp.value) || 0;
+  });
+  const payload = { name, cat, price, cost, reorder, unit, stock };
 
-  // 1. Immediately update local data
-  const curData = getLocalData(currentTenant.id);
-  if (editProductId) {
-    const idx = curData.products.findIndex(p => p.id === editProductId);
-    if (idx >= 0) curData.products[idx] = { ...curData.products[idx], ...payload };
-  } else {
-    const newP = { id: 'prod_' + Date.now(), ...payload };
-    curData.products.unshift(newP);
-  }
-  saveLocalData(currentTenant.id, curData);
-  closeModal('productModal');
-  toast(editProductId ? 'Product updated!' : 'Product added to catalog!', 'ok');
-  await loadTenantData();
-
-  // 2. Background sync to backend API
-  try {
-    if (editProductId) {
-      await apiFetch(`/api/tenant/${currentTenant.id}/products/${editProductId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    } else {
-      await apiFetch(`/api/tenant/${currentTenant.id}/products`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+  const data = await apiFetch(
+    editProductId
+      ? `/api/tenant/${currentTenant.id}/products/${editProductId}`
+      : `/api/tenant/${currentTenant.id}/products`,
+    {
+      method: editProductId ? 'PUT' : 'POST',
+      body: JSON.stringify(payload)
     }
-  } catch (err) {
-    console.warn('Product sync deferred:', err);
+  );
+  closeModal('productModal');
+  if (data && data.success === false) {
+    toast(data.error || 'Could not save product', 'err');
+    return;
   }
+  toast(editProductId ? 'Product updated' : 'Product added', 'ok');
+  await loadTenantData();
 }
 
 async function deleteProduct(id) {
@@ -2180,158 +2350,102 @@ async function deleteProduct(id) {
 
 // ═══════════════ 4. STOCK ENTRY ═══════════════
 function renderStockEntry() {
-  const b1n = currentTenant.b1name || 'Branch 1';
-  const b2n = currentTenant.b2name || 'Branch 2';
-  const b3n = currentTenant.b3name || 'Branch 3';
-
-  document.getElementById('se-b1h').textContent = `${b1n} — Set To`;
-  document.getElementById('se-b2h').textContent = `${b2n} — Set To`;
-  document.getElementById('se-b3h').textContent = `${b3n} — Set To`;
-
+  const branches = getBranches();
+  const head = document.getElementById('stockEntryHead');
+  head.innerHTML = `<tr>
+    <th>Product</th><th>Category</th>
+    ${branches.map(b => `<th>${b.name} — Set To</th>`).join('')}
+    ${branches.map(b => `<th>Current ${b.name}</th>`).join('')}
+  </tr>`;
   const body = document.getElementById('stockEntryBody');
   body.innerHTML = products.map(p => `
     <tr>
-      <td style="font-weight:700">${p.name}</td>
-      <td><span class="badge badge-generic">${p.cat}</span></td>
-      <td><input type="number" data-id="${p.id}" data-br="b1" placeholder="${p.b1Stock || 0}" style="width:90px"/></td>
-      <td><input type="number" data-id="${p.id}" data-br="b2" placeholder="${p.b2Stock || 0}" style="width:90px"/></td>
-      <td><input type="number" data-id="${p.id}" data-br="b3" placeholder="${p.b3Stock || 0}" style="width:90px"/></td>
-      <td style="font-weight:600">${p.b1Stock || 0}</td>
-      <td style="font-weight:600">${p.b2Stock || 0}</td>
-      <td style="font-weight:600">${p.b3Stock || 0}</td>
-    </tr>
-  `).join('');
+      <td style="font-weight:650">${p.name}</td>
+      <td>${p.cat || ''}</td>
+      ${branches.map(b => `<td><input type="number" data-se="${p.id}:${b.id}" value="${getProductStock(p, b.id)}" style="width:90px"/></td>`).join('')}
+      ${branches.map(b => `<td style="color:var(--text-muted)">${getProductStock(p, b.id)}</td>`).join('')}
+    </tr>`).join('') || `<tr><td colspan="${2 + branches.length * 2}" style="text-align:center;padding:24px">No products</td></tr>`;
 }
 
 async function saveStockEntry() {
-  const inputs = document.querySelectorAll('#stockEntryBody input[type=number]');
-  let count = 0;
-  const curData = getLocalData(currentTenant.id);
-
+  const branches = getBranches();
+  const inputs = [...document.querySelectorAll('#stockEntryBody [data-se]')];
+  let saved = 0;
   for (const inp of inputs) {
-    if (inp.value !== '') {
-      const pid = inp.dataset.id;
-      const br = inp.dataset.br + 'Stock';
-      const val = parseInt(inp.value);
-      const prod = curData.products.find(p => p.id === pid);
-      if (prod) {
-        prod[br] = val;
-        count++;
-      }
-      // Async sync
-      apiFetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [br]: val })
-      }).catch(() => {});
-    }
+    const [pid, bid] = inp.getAttribute('data-se').split(':');
+    const qty = parseInt(inp.value) || 0;
+    const p = products.find(x => x.id === pid);
+    if (!p) continue;
+    if (getProductStock(p, bid) === qty) continue;
+    const stock = {};
+    branches.forEach(b => { stock[b.id] = b.id === bid ? qty : getProductStock(p, b.id); });
+    // merge all inputs for this product
+    inputs.filter(i => i.getAttribute('data-se').startsWith(pid + ':')).forEach(i => {
+      const [, id] = i.getAttribute('data-se').split(':');
+      stock[id] = parseInt(i.value) || 0;
+    });
+    await apiFetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
+      method: 'PUT', body: JSON.stringify({ stock })
+    });
+    await apiFetch(`/api/tenant/${currentTenant.id}/stock-log`, {
+      method: 'POST',
+      body: JSON.stringify({ branch: bid, productName: p.name, change: qty - getProductStock(p, bid), reason: 'Stock count entry' })
+    });
+    saved++;
   }
-
-  if (count > 0) {
-    saveLocalData(currentTenant.id, curData);
-    toast(`Stock updated for ${count} entries!`, 'ok');
-    await loadTenantData();
-  } else {
-    toast('No changes entered', 'warn');
-  }
+  toast(saved ? `Saved stock for ${saved} updates` : 'No changes', 'ok');
+  await loadTenantData();
 }
 
-// ═══════════════ 5. STOCK TRANSFER ═══════════════
 function renderTransferTab() {
+  const branches = getBranches();
+  fillBranchSelect(document.getElementById('tfFrom'), branches[0] && branches[0].id);
+  fillBranchSelect(document.getElementById('tfTo'), branches[1] && branches[1].id || (branches[0] && branches[0].id));
   const sel = document.getElementById('tfItem');
-  sel.innerHTML = '<option value="">Choose item...</option>' + products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-  
-  const fromSel = document.getElementById('tfFrom');
-  const toSel = document.getElementById('tfTo');
-  const b1n = currentTenant.b1name || 'Branch 1';
-  const b2n = currentTenant.b2name || 'Branch 2';
-  const b3n = currentTenant.b3name || 'Branch 3';
-  fromSel.options[0].text = b1n; fromSel.options[1].text = b2n; fromSel.options[2].text = b3n;
-  toSel.options[0].text = b2n; toSel.options[1].text = b1n; toSel.options[2].text = b3n;
-
-  const logBody = document.getElementById('transferLogBody');
-  if (transfers.length === 0) {
-    logBody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">No transfers recorded</td></tr>';
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">Choose item...</option>' + products.map(p =>
+    `<option value="${p.id}" ${p.id === cur ? 'selected' : ''}>${p.name}</option>`
+  ).join('');
+  const body = document.getElementById('transferLogBody');
+  if (!transfers.length) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">No transfers recorded</td></tr>';
   } else {
-    logBody.innerHTML = transfers.map(t => `
+    body.innerHTML = transfers.map(tr => `
       <tr>
-        <td style="font-size:.8rem">${new Date(t.ts).toLocaleTimeString()}</td>
-        <td style="font-weight:700">${t.productName}</td>
-        <td style="font-weight:700">${t.qty}</td>
-        <td><span class="badge badge-b1">${currentTenant[t.fromBranch + 'name'] || t.fromBranch}</span></td>
-        <td><span class="badge badge-b2">${currentTenant[t.toBranch + 'name'] || t.toBranch}</span></td>
-      </tr>
-    `).join('');
+        <td style="font-size:.8rem">${new Date(tr.ts).toLocaleString()}</td>
+        <td>${tr.productName || ''}</td>
+        <td>${tr.qty}</td>
+        <td>${branchName(tr.fromBranch)}</td>
+        <td>${branchName(tr.toBranch)}</td>
+      </tr>`).join('');
   }
+  updateTransferPreview();
 }
 
-function updateTransferPreview() {}
+function updateTransferPreview() {
+  /* optional live preview — kept for onchange hooks */
+}
 
 async function confirmTransfer() {
   const pid = document.getElementById('tfItem').value;
   const from = document.getElementById('tfFrom').value;
   const to = document.getElementById('tfTo').value;
-  const qty = parseInt(document.getElementById('tfQty').value);
-  const note = document.getElementById('tfNote').value;
+  const qty = parseInt(document.getElementById('tfQty').value) || 0;
+  const note = document.getElementById('tfNote').value.trim();
+  if (!pid || !qty) { toast('Select item and quantity', 'err'); return; }
+  if (from === to) { toast('Choose different branches', 'err'); return; }
 
-  if (!pid || !qty || qty <= 0) { toast('Please select product & valid quantity', 'err'); return; }
-  if (from === to) { toast('Source and Destination branches must be different', 'err'); return; }
-
-  const p = products.find(x => x.id === pid);
-  const fromStockKey = from + 'Stock';
-  const toStockKey = to + 'Stock';
-
-  if ((p[fromStockKey] || 0) < qty) {
-    toast(`Insufficient stock in ${currentTenant[from + 'name'] || from}`, 'err');
+  const data = await apiFetch(`/api/tenant/${currentTenant.id}/transfers`, {
+    method: 'POST',
+    body: JSON.stringify({ productId: pid, fromBranch: from, toBranch: to, qty, note })
+  });
+  if (!data || data.success === false) {
+    toast((data && data.error) || 'Transfer failed', 'err');
     return;
   }
-
-  // 1. Update local state immediately
-  const curData = getLocalData(currentTenant.id);
-  const targetProd = curData.products.find(x => x.id === pid);
-  if (targetProd) {
-    targetProd[fromStockKey] = (targetProd[fromStockKey] || 0) - qty;
-    targetProd[toStockKey] = (targetProd[toStockKey] || 0) + qty;
-  }
-  const newTransfer = {
-    id: 'tf_' + Date.now(),
-    tenantId: currentTenant.id,
-    productName: p.name,
-    fromBranch: from,
-    toBranch: to,
-    qty,
-    note,
-    ts: new Date().toISOString()
-  };
-  curData.transfers.unshift(newTransfer);
-  saveLocalData(currentTenant.id, curData);
-
-  toast('Transfer complete!', 'ok');
+  toast('Transfer complete', 'ok');
   document.getElementById('tfQty').value = '';
   document.getElementById('tfNote').value = '';
-  await loadTenantData();
-
-  // 2. Background sync
-  apiFetch(`/api/tenant/${currentTenant.id}/products/${pid}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      [fromStockKey]: (targetProd ? targetProd[fromStockKey] : 0),
-      [toStockKey]: (targetProd ? targetProd[toStockKey] : 0)
-    })
-  }).catch(() => {});
-
-  apiFetch(`/api/tenant/${currentTenant.id}/transfers`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      productName: p.name,
-      fromBranch: from,
-      toBranch: to,
-      qty,
-      note
-    })
-  }).catch(() => {});
   await loadTenantData();
   renderTransferTab();
 }
@@ -2347,7 +2461,7 @@ function renderHistory() {
     <tr>
       <td style="font-family:var(--num);font-weight:650;font-variant-numeric:tabular-nums">${s.billNo}</td>
       <td style="font-size:.82rem">${new Date(s.ts).toLocaleString()}</td>
-      <td><span class="badge badge-generic">${currentTenant[s.branch + 'name'] || s.branch}</span></td>
+      <td><span class="badge badge-generic">${branchName(s.branch)}</span></td>
       <td>${s.customerName || s.custName || 'Walk-in'}</td>
       <td style="font-size:.82rem">${(s.items || []).map(i => `${i.name} ×${i.qty}`).join(', ')}</td>
       <td style="font-weight:800;color:var(--theme-primary)">${fmtMoney(s.total)}</td>
@@ -2365,7 +2479,7 @@ function exportCSV() {
     rows.push([
       s.billNo,
       new Date(s.ts).toLocaleString(),
-      currentTenant[s.branch + 'name'] || s.branch,
+      branchName(s.branch),
       s.customerName || 'Walk-in',
       (s.items || []).map(i => `${i.name}x${i.qty}`).join('; '),
       s.total
@@ -2380,34 +2494,21 @@ function exportCSV() {
 
 // ═══════════════ 7. REPORTS ═══════════════
 function renderReports() {
-  const b1s = sales.filter(s => s.branch === 'b1');
-  const b2s = sales.filter(s => s.branch === 'b2');
-  const b3s = sales.filter(s => s.branch === 'b3');
-
-  const b1n = currentTenant.b1name || 'Branch 1';
-  const b2n = currentTenant.b2name || 'Branch 2';
-  const b3n = currentTenant.b3name || 'Branch 3';
-
-  const rows = [
-    [b1n, b1s],
-    [b2n, b2s],
-    [b3n, b3s]
-  ];
-
-  document.getElementById('repSummaryBody').innerHTML = rows.map(([name, list]) => {
-    const sub = list.reduce((a, s) => a + (Number(s.subtotal) || 0), 0);
-    const tax = list.reduce((a, s) => a + (Number(s.tax) || 0), 0);
-    const tot = list.reduce((a, s) => a + (Number(s.total) || 0), 0);
-    return `
-      <tr>
-        <td style="font-weight:700">${name}</td>
-        <td>${list.length}</td>
-        <td>${fmtMoney(sub)}</td>
-        <td>${fmtMoney(tax)}</td>
-        <td style="font-weight:800;color:var(--theme-primary)">${fmtMoney(tot)}</td>
-      </tr>
-    `;
-  }).join('');
+  const branches = getBranches();
+  const body = document.getElementById('repSummaryBody');
+  body.innerHTML = branches.map(b => {
+    const list = sales.filter(s => s.branch === b.id);
+    const sub = list.reduce((a, s) => a + Number(s.subtotal || 0), 0);
+    const tax = list.reduce((a, s) => a + Number(s.tax || 0), 0);
+    const tot = list.reduce((a, s) => a + Number(s.total || 0), 0);
+    return `<tr>
+      <td style="font-weight:650">${b.name}</td>
+      <td>${list.length}</td>
+      <td>${fmtMoney(sub)}</td>
+      <td>${fmtMoney(tax)}</td>
+      <td style="font-weight:800;color:var(--theme-primary)">${fmtMoney(tot)}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;padding:24px">No data</td></tr>';
 }
 
 function exportExcel() {
@@ -2416,7 +2517,7 @@ function exportExcel() {
   const salesData = sales.map(s => ({
     'Invoice No': s.billNo,
     'Date': new Date(s.ts).toLocaleString(),
-    'Branch': currentTenant[s.branch + 'name'] || s.branch,
+    'Branch': branchName(s.branch),
     'Customer': s.customerName || 'Walk-in',
     'Total': s.total
   }));
@@ -2426,6 +2527,59 @@ function exportExcel() {
 }
 
 // ═══════════════ 8. CLIENT BRANDING & LOGO UPLOAD ═══════════════
+function renderAdminBranchesEditor() {
+  const wrap = document.getElementById('admBranchesList');
+  if (!wrap || !currentTenant) return;
+  const branches = getBranches(currentTenant);
+  wrap.innerHTML = branches.map((b, i) => `
+    <div class="form-row" data-adm-branch="${b.id}" style="align-items:end">
+      <div class="form-group">
+        <label>Branch id</label>
+        <input type="text" value="${b.id}" data-field="id"/>
+      </div>
+      <div class="form-group">
+        <label>Name</label>
+        <input type="text" value="${b.name}" data-field="name"/>
+      </div>
+      <div class="form-group">
+        <label>New PIN (optional)</label>
+        <input type="password" maxlength="8" placeholder="Leave blank to keep" data-field="pin"/>
+      </div>
+      <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('[data-adm-branch]').remove()">Remove</button>
+    </div>`).join('');
+}
+
+function addAdminBranchRow() {
+  const wrap = document.getElementById('admBranchesList');
+  if (!wrap) return;
+  const n = wrap.children.length + 1;
+  const id = 'b' + n + '_' + Math.floor(Math.random() * 1000);
+  const div = document.createElement('div');
+  div.className = 'form-row';
+  div.setAttribute('data-adm-branch', id);
+  div.style.alignItems = 'end';
+  div.innerHTML = `
+    <div class="form-group"><label>Branch id</label><input type="text" value="${id}" data-field="id"/></div>
+    <div class="form-group"><label>Name</label><input type="text" value="Branch ${n}" data-field="name"/></div>
+    <div class="form-group"><label>PIN</label><input type="password" maxlength="8" value="1111" data-field="pin"/></div>
+    <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('[data-adm-branch]').remove()">Remove</button>`;
+  wrap.appendChild(div);
+}
+
+function collectAdminBranches() {
+  const rows = [...document.querySelectorAll('#admBranchesList [data-adm-branch]')];
+  const branches = [];
+  const pinPlaintext = {};
+  rows.forEach((row, i) => {
+    const id = (row.querySelector('[data-field="id"]')?.value || `b${i+1}`).trim().replace(/[^a-z0-9_]/gi, '') || `b${i+1}`;
+    const name = (row.querySelector('[data-field="name"]')?.value || `Branch ${i+1}`).trim();
+    const pin = row.querySelector('[data-field="pin"]')?.value?.trim();
+    branches.push({ id, name, sortOrder: i });
+    if (pin) pinPlaintext[id] = pin;
+  });
+  return { branches, pinPlaintext };
+}
+
 function renderAdminSettings() {
   if (!currentTenant) return;
   document.getElementById('adm-tenantName').value = currentTenant.name || '';
@@ -2437,9 +2591,7 @@ function renderAdminSettings() {
   document.getElementById('adm-accentColorHex').value = currentTenant.accentColor || '#111111';
   document.getElementById('adm-currency').value = currentTenant.currency || '₹';
   document.getElementById('adm-gstRate').value = currentTenant.gstRate ?? 5;
-  document.getElementById('adm-b1name').value = currentTenant.b1name || 'Branch 1';
-  document.getElementById('adm-b2name').value = currentTenant.b2name || 'Branch 2';
-  document.getElementById('adm-b3name').value = currentTenant.b3name || 'Branch 3';
+  renderAdminBranchesEditor();
 
   const codeEl = document.getElementById('activeCustomerUrlCode');
   if (codeEl) codeEl.textContent = getCustomerPortalUrl(currentTenant.id);
@@ -2493,21 +2645,25 @@ async function saveTenantBranding() {
   const accentColor = document.getElementById('adm-accentColor').value;
   const currency = document.getElementById('adm-currency').value.trim() || '$';
   const gstRate = parseFloat(document.getElementById('adm-gstRate').value) || 0;
-  const b1name = document.getElementById('adm-b1name').value.trim() || 'Branch 1';
-  const b2name = document.getElementById('adm-b2name').value.trim() || 'Branch 2';
-  const b3name = document.getElementById('adm-b3name').value.trim() || 'Branch 3';
+  const { branches, pinPlaintext } = collectAdminBranches();
+  if (!branches.length) { toast('Add at least one branch', 'err'); return; }
 
   const updates = {
     name, businessType, tagline, themeColor, accentColor,
-    currency, gstRate, b1name, b2name, b3name
+    currency, gstRate, branches, pinPlaintext
   };
 
   if (currentUploadedLogoBase64) {
     updates.logoUrl = currentUploadedLogoBase64;
   }
 
-  // 1. Immediately update and save locally
-  currentTenant = { ...currentTenant, ...updates };
+  // 1. Immediately update and save locally (pins hashed on server; keep names/branches local)
+  const localUpdates = { ...updates };
+  delete localUpdates.pinPlaintext;
+  for (const b of branches) {
+    if (/^b[1-9]\d*$/.test(b.id)) localUpdates[b.id + 'name'] = b.name;
+  }
+  currentTenant = { ...currentTenant, ...localUpdates };
   saveLocalTenant(currentTenant);
   applyTenantTheme(currentTenant);
   document.getElementById('hdrTenantName').textContent = currentTenant.name;
@@ -2615,6 +2771,8 @@ function copyNeonSchemaSql() {
 
 // Init on load
 window.addEventListener('DOMContentLoaded', () => {
+  const superTok = getSuperToken();
+  if (superTok) setAuthToken(superTok);
   loadTenants();
 });
 </script>

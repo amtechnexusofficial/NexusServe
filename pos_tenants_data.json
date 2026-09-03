@@ -6,7 +6,7 @@
       "code": "nb",
       "businessType": "Bakery & Cake Shop",
       "tagline": "Freshly Baked Goodness & Artisan Cakes",
-      "currency": "\u20b9",
+      "currency": "₹",
       "themeColor": "#e4a11b",
       "accentColor": "#111111",
       "logoUrl": "",
@@ -15,12 +15,36 @@
       "b2name": "Express Kiosk",
       "b3name": "Delivery Hub",
       "pins": {
-        "admin": "1234",
-        "b1": "1111",
-        "b2": "2222",
-        "b3": "3333"
+        "admin": "$2b$10$yJZMoDQdumcDrg7fRX0nKOfs7py5TklifdLLbWHCxiD079Epp22j2",
+        "b1": "$2b$10$W8r/b99RAu9CZIE/cQY.MuUO/NF2Skhe0SM3999rbsN16LfEODfB6",
+        "b2": "$2b$10$MgC0AgTLg3JurhwcmRXoFecf5uVIfO29gHinPAAS87nIOVcEEqAga",
+        "b3": "$2b$10$qC4IVCY.Scyft//iDCtHf.u1NCK9p0SS.EnAMIn8wBoAhtXCc12m6",
+        "b4": "$2b$10$veitrvofYbkQK81iy8YBG.jStwLfFEVwUhgU1Wa27FIqVS8dUkMVW"
       },
-      "createdAt": "2026-09-02T16:18:38.784Z"
+      "createdAt": "2026-09-02T16:18:38.784Z",
+      "branches": [
+        {
+          "id": "b1",
+          "name": "Flagship Store",
+          "sortOrder": 0
+        },
+        {
+          "id": "b2",
+          "name": "Express Kiosk",
+          "sortOrder": 1
+        },
+        {
+          "id": "b3",
+          "name": "Delivery Hub",
+          "sortOrder": 2
+        },
+        {
+          "id": "b4",
+          "name": "Warehouse East",
+          "sortOrder": 3
+        }
+      ],
+      "b4name": "Warehouse East"
     },
     {
       "id": "urban-bites",
@@ -37,22 +61,39 @@
       "b2name": "Drive Thru",
       "b3name": "Pop-up Cart",
       "pins": {
-        "admin": "1234",
-        "b1": "1111",
-        "b2": "2222",
-        "b3": "3333"
+        "admin": "$2b$10$G4GLzy4FHxkC.JZSBMkcwecJOz8G5GnOMElHiLfpc4LdoDclt.omG",
+        "b1": "$2b$10$NI8XbnAM57jknpThitDPrOd6XYz.PnHyZQEe2qH1osAG90Vnq5M3C",
+        "b2": "$2b$10$ZZJ3.2egUDJgn2qlYq43bemlpKoOAZinY3ID2U7s4CkxQVDE4k2TO",
+        "b3": "$2b$10$hwnSZAA.yIDWD/J8/3gSWuwKxjcF681nCQaZUzL/EB4odQ1Yxmai6"
       },
-      "createdAt": "2026-09-02T16:18:38.784Z"
+      "createdAt": "2026-09-02T16:18:38.784Z",
+      "branches": [
+        {
+          "id": "b1",
+          "name": "Main Cafe",
+          "sortOrder": 0
+        },
+        {
+          "id": "b2",
+          "name": "Drive Thru",
+          "sortOrder": 1
+        },
+        {
+          "id": "b3",
+          "name": "Pop-up Cart",
+          "sortOrder": 2
+        }
+      ]
     },
     {
       "id": "test-bakery-5081",
       "name": "Test Bakery",
       "code": "testbake",
       "username": "testbake",
-      "password": "pos1567",
+      "password": "$2b$10$blSg4RdmoRNq8NUkeSp0tuDU3NBLOx6rrF7auqgsvLCH8kDKOh0p.",
       "businessType": "Food & Retail",
       "tagline": "Quality Products & Efficient Service",
-      "currency": "\u20b9",
+      "currency": "₹",
       "themeColor": "#c45c26",
       "accentColor": "#111111",
       "logoUrl": "",
@@ -61,20 +102,37 @@
       "b2name": "Counter 2",
       "b3name": "Delivery Unit",
       "pins": {
-        "admin": "1234",
-        "b1": "1111",
-        "b2": "2222",
-        "b3": "3333"
+        "admin": "$2b$10$RQxjpjKst.m2dcWsuxNQ8.1bVkOM3MDyVdO6Bo9AF0AnCBxgAvJ7.",
+        "b1": "$2b$10$8Y4Jbh4MI3BH9RH2gnMuc.MSIAwhvW6Hwz4S8P5EYr9NTFppPjgo.",
+        "b2": "$2b$10$LW75G.hb75wPzFSYiHeV.eMcPjAvCngiBEdDFFUXvRo9dK/PZ3qcG",
+        "b3": "$2b$10$ucB85Tt0hu5nHF6cBGYBD.3o13cbHdNQMQXyxucl0b6X/HEJ7lqwW"
       },
       "isOnboarded": false,
-      "createdAt": "2026-09-02T16:20:17.539Z"
+      "createdAt": "2026-09-02T16:20:17.539Z",
+      "branches": [
+        {
+          "id": "b1",
+          "name": "Main Branch",
+          "sortOrder": 0
+        },
+        {
+          "id": "b2",
+          "name": "Counter 2",
+          "sortOrder": 1
+        },
+        {
+          "id": "b3",
+          "name": "Delivery Unit",
+          "sortOrder": 2
+        }
+      ]
     },
     {
       "id": "artisan-coffee-roasters-6771",
       "name": "Artisan Coffee Roasters",
       "code": "artisanc",
       "username": "artisanc",
-      "password": "pos1788",
+      "password": "$2b$10$PRRzpMx7NW.X2D5a9e6dhO7udLpYWaBBPT8l8W3SDUpilOW45Y4o6",
       "businessType": "Cafe",
       "tagline": "Quality Products & Efficient Service",
       "currency": "$",
@@ -86,13 +144,30 @@
       "b2name": "Counter 2",
       "b3name": "Delivery Unit",
       "pins": {
-        "admin": "1234",
-        "b1": "1111",
-        "b2": "2222",
-        "b3": "3333"
+        "admin": "$2b$10$H1626eVKllYTaCmKVwlyg.PWUlZOrzBG8HoY5LoWa00KKDa0InrLu",
+        "b1": "$2b$10$wRM0iVjhmRl2WleACS.L2.oewfJAZ8fHa77YsobKb/uTbl5nk4zYC",
+        "b2": "$2b$10$7hRzDsmT82VMQqdk2Sf9Kebq7oR4krgf1dRfyqKsMdFipuEqzuDPi",
+        "b3": "$2b$10$JpIPI/FoF7y/dXwZ5FE.6OzG3VhO9Us/xfHJCpb8gBPfyTUGmv82y"
       },
       "isOnboarded": false,
-      "createdAt": "2026-09-02T16:24:05.591Z"
+      "createdAt": "2026-09-02T16:24:05.591Z",
+      "branches": [
+        {
+          "id": "b1",
+          "name": "Main Branch",
+          "sortOrder": 0
+        },
+        {
+          "id": "b2",
+          "name": "Counter 2",
+          "sortOrder": 1
+        },
+        {
+          "id": "b3",
+          "name": "Delivery Unit",
+          "sortOrder": 2
+        }
+      ]
     }
   ],
   "products": {
@@ -103,11 +178,18 @@
         "cat": "Brownies",
         "price": 95,
         "cost": 45,
-        "b1Stock": 35,
+        "b1Stock": 33,
         "b2Stock": 20,
         "b3Stock": 15,
         "reorder": 10,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 33,
+          "b2": 20,
+          "b3": 15,
+          "b4": 1
+        },
+        "b4Stock": 1
       },
       {
         "id": "prod_2",
@@ -119,7 +201,14 @@
         "b2Stock": 12,
         "b3Stock": 8,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 20,
+          "b2": 12,
+          "b3": 8,
+          "b4": 0
+        },
+        "b4Stock": 0
       },
       {
         "id": "prod_3",
@@ -131,7 +220,14 @@
         "b2Stock": 15,
         "b3Stock": 10,
         "reorder": 8,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 25,
+          "b2": 15,
+          "b3": 10,
+          "b4": 0
+        },
+        "b4Stock": 0
       },
       {
         "id": "prod_4",
@@ -143,7 +239,14 @@
         "b2Stock": 10,
         "b3Stock": 5,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 15,
+          "b2": 10,
+          "b3": 5,
+          "b4": 0
+        },
+        "b4Stock": 0
       },
       {
         "id": "prod_5",
@@ -155,7 +258,14 @@
         "b2Stock": 8,
         "b3Stock": 6,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 18,
+          "b2": 8,
+          "b3": 6,
+          "b4": 0
+        },
+        "b4Stock": 0
       },
       {
         "id": "prod_6",
@@ -167,7 +277,14 @@
         "b2Stock": 40,
         "b3Stock": 30,
         "reorder": 15,
-        "unit": "cups"
+        "unit": "cups",
+        "stock": {
+          "b1": 50,
+          "b2": 40,
+          "b3": 30,
+          "b4": 0
+        },
+        "b4Stock": 0
       }
     ],
     "urban-bites": [
@@ -181,7 +298,12 @@
         "b2Stock": 25,
         "b3Stock": 15,
         "reorder": 10,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 40,
+          "b2": 25,
+          "b3": 15
+        }
       },
       {
         "id": "ub_2",
@@ -193,7 +315,12 @@
         "b2Stock": 40,
         "b3Stock": 20,
         "reorder": 15,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 60,
+          "b2": 40,
+          "b3": 20
+        }
       },
       {
         "id": "ub_3",
@@ -205,7 +332,12 @@
         "b2Stock": 30,
         "b3Stock": 25,
         "reorder": 10,
-        "unit": "cups"
+        "unit": "cups",
+        "stock": {
+          "b1": 50,
+          "b2": 30,
+          "b3": 25
+        }
       }
     ],
     "test-bakery-5081": [
@@ -219,7 +351,12 @@
         "b2Stock": 20,
         "b3Stock": 15,
         "reorder": 10,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 35,
+          "b2": 20,
+          "b3": 15
+        }
       },
       {
         "id": "item_1788366017548_1",
@@ -231,7 +368,12 @@
         "b2Stock": 12,
         "b3Stock": 8,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 20,
+          "b2": 12,
+          "b3": 8
+        }
       },
       {
         "id": "item_1788366017548_2",
@@ -243,7 +385,12 @@
         "b2Stock": 15,
         "b3Stock": 10,
         "reorder": 8,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 25,
+          "b2": 15,
+          "b3": 10
+        }
       },
       {
         "id": "item_1788366017548_3",
@@ -255,7 +402,12 @@
         "b2Stock": 10,
         "b3Stock": 5,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 15,
+          "b2": 10,
+          "b3": 5
+        }
       },
       {
         "id": "item_1788366017548_4",
@@ -267,7 +419,12 @@
         "b2Stock": 8,
         "b3Stock": 6,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 18,
+          "b2": 8,
+          "b3": 6
+        }
       },
       {
         "id": "item_1788366017548_5",
@@ -279,7 +436,12 @@
         "b2Stock": 40,
         "b3Stock": 30,
         "reorder": 15,
-        "unit": "cups"
+        "unit": "cups",
+        "stock": {
+          "b1": 50,
+          "b2": 40,
+          "b3": 30
+        }
       }
     ],
     "artisan-coffee-roasters-6771": [
@@ -293,7 +455,12 @@
         "b2Stock": 20,
         "b3Stock": 15,
         "reorder": 10,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 35,
+          "b2": 20,
+          "b3": 15
+        }
       },
       {
         "id": "item_1788366245633_1",
@@ -305,7 +472,12 @@
         "b2Stock": 12,
         "b3Stock": 8,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 20,
+          "b2": 12,
+          "b3": 8
+        }
       },
       {
         "id": "item_1788366245633_2",
@@ -317,7 +489,12 @@
         "b2Stock": 15,
         "b3Stock": 10,
         "reorder": 8,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 25,
+          "b2": 15,
+          "b3": 10
+        }
       },
       {
         "id": "item_1788366245633_3",
@@ -329,7 +506,12 @@
         "b2Stock": 10,
         "b3Stock": 5,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 15,
+          "b2": 10,
+          "b3": 5
+        }
       },
       {
         "id": "item_1788366245633_4",
@@ -341,7 +523,12 @@
         "b2Stock": 8,
         "b3Stock": 6,
         "reorder": 5,
-        "unit": "pcs"
+        "unit": "pcs",
+        "stock": {
+          "b1": 18,
+          "b2": 8,
+          "b3": 6
+        }
       },
       {
         "id": "item_1788366245633_5",
@@ -353,13 +540,44 @@
         "b2Stock": 40,
         "b3Stock": 30,
         "reorder": 15,
-        "unit": "cups"
+        "unit": "cups",
+        "stock": {
+          "b1": 50,
+          "b2": 40,
+          "b3": 30
+        }
       }
     ]
   },
   "sales": {
     "test-bakery-5081": [],
-    "artisan-coffee-roasters-6771": []
+    "artisan-coffee-roasters-6771": [],
+    "nb-cakes": [
+      {
+        "billNo": "SMOKE-1788432506242",
+        "branch": "b4",
+        "subtotal": 95,
+        "tax": 4.75,
+        "total": 99.75,
+        "items": [
+          {
+            "id": "prod_1",
+            "productId": "prod_1",
+            "name": "Signature Chocolate Brownie",
+            "price": 95,
+            "qty": 1
+          }
+        ],
+        "customerName": "Smoke",
+        "cashier": "admin",
+        "id": "sale_1788432506246",
+        "customerPhone": "",
+        "custName": "Smoke",
+        "custPhone": "",
+        "payMethod": "cash",
+        "ts": "2026-09-03T10:48:26.247Z"
+      }
+    ]
   },
   "stockLogs": {
     "test-bakery-5081": [],
@@ -367,6 +585,18 @@
   },
   "transfers": {
     "test-bakery-5081": [],
-    "artisan-coffee-roasters-6771": []
+    "artisan-coffee-roasters-6771": [],
+    "nb-cakes": [
+      {
+        "id": "tr_1788432506240",
+        "productId": "prod_1",
+        "productName": "Signature Chocolate Brownie",
+        "fromBranch": "b1",
+        "toBranch": "b4",
+        "qty": 2,
+        "note": "smoke",
+        "ts": "2026-09-03T10:48:26.240Z"
+      }
+    ]
   }
 }
