@@ -1001,17 +1001,17 @@ input:focus, select:focus, textarea:focus {
 
       <div style="background:#f8fafc;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px">
         <div style="font-weight:800;color:var(--text-main);font-size:.9rem;margin-bottom:4px;display:flex;align-items:center;gap:6px">
-          <span>🌐</span> Backend API Server URL (For Cloudflare Pages)
+          <span>🌐</span> Backend API Server URL (optional)
         </div>
         <p style="font-size:.82rem;color:var(--text-muted);line-height:1.4;margin-bottom:10px">
-          When deployed on Cloudflare Pages (<code>nexusserve.pages.dev</code>), the frontend connects to this backend API to sync with Neon PostgreSQL. If offline or unconfigured, it automatically runs in resilient browser storage.
+          Cloudflare Pages hosts the UI only. Paste a live API URL here (Cloud Run / VPS running <code>node server.js</code>) to sync with Neon. Leave blank to use browser-local storage.
         </p>
         <div class="form-group" style="margin-bottom:8px">
-          <input type="text" id="cfgApiBaseUrl" placeholder="https://ais-pre-g6ixkn5zaw4hpy4iwxmqc7-241779508615.asia-southeast1.run.app" style="font-family:var(--mono);font-size:.82rem"/>
+          <input type="text" id="cfgApiBaseUrl" placeholder="https://your-api.example.com" style="font-family:var(--mono);font-size:.82rem"/>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" onclick="saveAndTestApiUrl()">Test &amp; save URL</button>
-          <button class="btn btn-outline btn-sm" onclick="resetApiUrlToDefault()">↺ Reset Live Server</button>
+          <button class="btn btn-outline btn-sm" onclick="resetApiUrlToDefault()">↺ Use browser-local</button>
           <span id="apiUrlTestStatus" style="font-size:.8rem;font-weight:700"></span>
         </div>
       </div>
@@ -1154,33 +1154,49 @@ function closeModal(id) { document.getElementById(id).classList.remove('show'); 
 function closeModalOut(e, id) { if (e.target.id === id) closeModal(id); }
 
 // ═══════════════ API & RESILIENT STORAGE ENGINE ═══════════════
-// Legacy Cloud Run host (often stale). Prefer same-origin when serving from this app.
-const PROD_BACKEND_URL = 'https://ais-pre-g6ixkn5zaw4hpy4iwxmqc7-241779508615.asia-southeast1.run.app';
+// Optional remote API for Cloudflare Pages. Leave empty to use browser-local mode.
+const PROD_BACKEND_URL = '';
+const LEGACY_DEAD_BACKEND = 'https://ais-pre-g6ixkn5zaw4hpy4iwxmqc7-241779508615.asia-southeast1.run.app';
+const DEMO_SUPER_USER = 'admin@amtechnexus.com';
+const DEMO_SUPER_PASS = 'amtech2026';
+const OFFLINE_TOKEN_PREFIX = 'offline_';
+let apiReachableCache = null; // null unknown, true/false after probe
 
 function isLocalHost() {
   const h = window.location.hostname;
   return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' || h === '';
 }
 
+function isStaticHost() {
+  const h = window.location.hostname;
+  return h.includes('pages.dev') || h.includes('github.io') || h.includes('cloudflare');
+}
+
+function isOfflineToken(token = getAuthToken()) {
+  return typeof token === 'string' && token.startsWith(OFFLINE_TOKEN_PREFIX);
+}
+
+function issueOfflineToken(kind = 'super') {
+  return OFFLINE_TOKEN_PREFIX + kind + '_' + Date.now();
+}
+
+function sanitizeStoredApiBase(raw) {
+  const v = (raw || '').trim().replace(/\/+$/, '');
+  if (!v) return '';
+  if (v === LEGACY_DEAD_BACKEND || v.includes('ais-pre-g6ixkn5zaw4hpy4iwxmqc7')) return '';
+  return v;
+}
+
 function getApiBase() {
-  // Always use same-origin when the UI is served by node server.js
+  // Local node server — always same-origin
   if (isLocalHost() && window.location.protocol.startsWith('http')) {
-    const custom = (localStorage.getItem('omni_api_base') || '').trim();
-    // Ignore stale remote overrides that break local login
-    if (!custom || custom === PROD_BACKEND_URL || custom.includes('run.app')) {
-      return '';
-    }
-    return custom.replace(/\/+$/, '');
+    const custom = sanitizeStoredApiBase(localStorage.getItem('omni_api_base'));
+    return custom;
   }
 
-  const custom = localStorage.getItem('omni_api_base');
-  if (custom !== null && custom !== undefined && custom.trim() !== '') {
-    return custom.trim().replace(/\/+$/, '');
-  }
-  if (window.location.hostname.includes('pages.dev') || window.location.hostname.includes('github.io')) {
-    return PROD_BACKEND_URL;
-  }
-  return '';
+  const custom = sanitizeStoredApiBase(localStorage.getItem('omni_api_base'));
+  if (custom) return custom;
+  return PROD_BACKEND_URL;
 }
 
 function apiUnreachableMessage() {
@@ -1190,11 +1206,49 @@ function apiUnreachableMessage() {
   if (isLocalHost()) {
     return 'Cannot reach local API. Run: node server.js then open http://localhost:3000';
   }
-  return 'Cannot reach API server. Check API URL in Database config.';
+  return 'No live API configured — use demo login for browser-local mode, or set a backend URL in Database config.';
+}
+
+async function probeApiReachable(force = false) {
+  if (!force && apiReachableCache !== null) return apiReachableCache;
+  const base = getApiBase();
+  // Static hosts with no API base → offline by design
+  if (isStaticHost() && !base) {
+    apiReachableCache = false;
+    return false;
+  }
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+    const url = (base || '') + '/api/db-status';
+    const res = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } });
+    clearTimeout(timeoutId);
+    const ct = res.headers.get('content-type') || '';
+    if (!res.ok || !ct.includes('application/json')) {
+      apiReachableCache = false;
+      return false;
+    }
+    const body = await res.json();
+    apiReachableCache = !!(body && body.storageType);
+    return apiReachableCache;
+  } catch {
+    apiReachableCache = false;
+    return false;
+  }
 }
 
 async function apiFetch(endpoint, options = {}) {
+  // Offline sessions never hit a remote API
+  if (isOfflineToken() && !endpoint.includes('/api/db-status')) {
+    return null;
+  }
+
   const base = getApiBase();
+  // On Pages with no backend configured, skip network (avoid CORS noise)
+  if (isStaticHost() && !base) {
+    return null;
+  }
+
   const url = base ? `${base}${endpoint}` : endpoint;
   try {
     const controller = new AbortController();
@@ -1207,7 +1261,7 @@ async function apiFetch(endpoint, options = {}) {
       headers['Content-Type'] = 'application/json';
     }
     const token = getAuthToken();
-    if (token) headers['Authorization'] = 'Bearer ' + token;
+    if (token && !isOfflineToken(token)) headers['Authorization'] = 'Bearer ' + token;
 
     const res = await fetch(url, {
       ...options,
@@ -1224,15 +1278,23 @@ async function apiFetch(endpoint, options = {}) {
       payload = await res.text();
     }
 
+    // HTML/404 from a static host or dead Cloud Run = unreachable API
+    if (!contentType.includes('application/json')) {
+      apiReachableCache = false;
+      return null;
+    }
+
     if (!res.ok) {
       console.warn(`apiFetch [${options.method || 'GET'}] ${url} returned ${res.status}`);
       return payload && typeof payload === 'object'
         ? { ...payload, success: false, status: res.status }
         : { success: false, status: res.status, error: 'Request failed' };
     }
+    apiReachableCache = true;
     return payload;
   } catch (err) {
     console.warn(`apiFetch error for ${url}:`, err.message);
+    apiReachableCache = false;
     return null;
   }
 }
@@ -1348,22 +1410,38 @@ async function submitSuperAdminLogin() {
 
   if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
 
-  if (!data || !data.success || !data.token) {
-    if (errEl) {
-      errEl.style.display = 'block';
-      errEl.textContent = !data
-        ? apiUnreachableMessage()
-        : (data.error || 'Invalid credentials');
-    }
+  // Live API success
+  if (data && data.success && data.token) {
+    setSuperToken(data.token);
+    setAuthToken(data.token);
+    document.getElementById('saPass').value = '';
+    showTenantSelect();
+    await loadTenants({ skipRouting: true, requireAuth: true });
+    toast('Signed in to master console', 'ok');
     return;
   }
 
-  setSuperToken(data.token);
-  setAuthToken(data.token);
-  document.getElementById('saPass').value = '';
-  showTenantSelect();
-  await loadTenants({ skipRouting: true, requireAuth: true });
-  toast('Signed in to master console', 'ok');
+  // Browser-local fallback when Pages has no (or dead) backend
+  const userOk = username === DEMO_SUPER_USER || username === 'admin';
+  const passOk = password === DEMO_SUPER_PASS;
+  const canOffline = !isLocalHost() || !(await probeApiReachable());
+  if (userOk && passOk && (data === null || canOffline)) {
+    const tok = issueOfflineToken('super');
+    setSuperToken(tok);
+    setAuthToken(tok);
+    document.getElementById('saPass').value = '';
+    showTenantSelect();
+    await loadTenants({ skipRouting: true, requireAuth: true });
+    toast('Signed in (browser-local mode — no live API)', 'warn');
+    return;
+  }
+
+  if (errEl) {
+    errEl.style.display = 'block';
+    errEl.textContent = data && data.error
+      ? data.error
+      : (userOk && !passOk ? 'Invalid credentials' : apiUnreachableMessage());
+  }
 }
 
 // Built-in starter customer templates
@@ -1859,16 +1937,40 @@ async function verifyPin() {
     body: JSON.stringify({ role: pinRole, pin: pinInput })
   });
 
-  if (!data || !data.success || !data.token) {
-    toast(!data ? apiUnreachableMessage() : ((data && data.error) || 'Incorrect PIN'), 'err');
-    pinInput = '';
-    updateDots();
+  if (data && data.success && data.token) {
+    setAuthToken(data.token);
+    if (data.tenant) currentTenant = { ...currentTenant, ...data.tenant };
+    await loginSuccess(pinRole);
     return;
   }
 
-  setAuthToken(data.token);
-  if (data.tenant) currentTenant = { ...currentTenant, ...data.tenant };
-  await loginSuccess(pinRole);
+  // Offline / browser-local PIN check
+  const demos = { admin: '1234', b1: '1111', b2: '2222', b3: '3333' };
+  getBranches().forEach((b, i) => {
+    if (!demos[b.id]) demos[b.id] = String(1111 * (i + 1)).slice(0, 4);
+  });
+  const localPins = (currentTenant && currentTenant.pins) || {};
+  const expected = (typeof localPins[pinRole] === 'string' && !localPins[pinRole].startsWith('$2'))
+    ? localPins[pinRole]
+    : demos[pinRole];
+
+  if ((!data || data.status >= 400) && expected && pinInput === String(expected)) {
+    setAuthToken(issueOfflineToken('tenant_' + currentTenant.id + '_' + pinRole));
+    await loginSuccess(pinRole);
+    if (isStaticHost() || isOfflineToken(getSuperToken())) {
+      toast('PIN accepted (browser-local mode)', 'warn');
+    }
+    return;
+  }
+
+  toast(
+    data && data.error
+      ? data.error
+      : (!data ? (expected ? 'Incorrect PIN' : apiUnreachableMessage()) : 'Incorrect PIN'),
+    'err'
+  );
+  pinInput = '';
+  updateDots();
 }
 
 async function loginSuccess(role) {
@@ -2726,7 +2828,11 @@ let neonSchemaSqlCache = '';
 function saveAndTestApiUrl() {
   const input = document.getElementById('cfgApiBaseUrl');
   const statusEl = document.getElementById('apiUrlTestStatus');
-  const val = input.value.trim();
+  let val = (input.value || '').trim();
+  if (val.startsWith('(same') || val.toLowerCase().includes('leave blank')) val = '';
+  val = sanitizeStoredApiBase(val);
+  if (input) input.value = val;
+  apiReachableCache = null;
   if (val) {
     localStorage.setItem('omni_api_base', val);
   } else {
@@ -2736,36 +2842,49 @@ function saveAndTestApiUrl() {
   statusEl.textContent = 'Testing connection...';
   statusEl.style.color = 'var(--text-muted)';
 
+  if (!val && isStaticHost()) {
+    statusEl.textContent = '✓ Browser-local mode (no remote API)';
+    statusEl.style.color = '#16a34a';
+    toast('Using browser-local storage', 'ok');
+    return;
+  }
+
   apiFetch('/api/db-status')
     .then(st => {
       if (st && st.storageType) {
+        apiReachableCache = true;
         statusEl.textContent = `✓ Connected (${st.storageType})`;
         statusEl.style.color = '#16a34a';
         toast('Connected to backend API server!', 'ok');
         loadTenants();
       } else {
-        statusEl.textContent = '⚠ Server responded but invalid format';
+        apiReachableCache = false;
+        statusEl.textContent = isStaticHost()
+          ? '✕ No live API — browser-local mode still works'
+          : '⚠ Server responded but invalid format';
         statusEl.style.color = '#eab308';
       }
     })
     .catch(() => {
-      statusEl.textContent = '✕ Server unreachable (using local storage)';
+      apiReachableCache = false;
+      statusEl.textContent = '✕ Server unreachable (browser-local mode)';
       statusEl.style.color = '#ef4444';
     });
 }
 
 function resetApiUrlToDefault() {
   localStorage.removeItem('omni_api_base');
+  apiReachableCache = null;
   const input = document.getElementById('cfgApiBaseUrl');
-  if (input) input.value = getApiBase();
-  toast(isLocalHost() ? 'Using this server (same origin)' : 'Cleared custom API URL', 'ok');
+  if (input) input.value = '';
+  toast(isLocalHost() ? 'Using this server (same origin)' : 'Browser-local mode (no remote API)', 'ok');
   saveAndTestApiUrl();
 }
 
 function openDbConfigModal() {
   const input = document.getElementById('cfgApiBaseUrl');
   if (input) {
-    input.value = isLocalHost() ? (getApiBase() || '(same origin — leave blank)') : (localStorage.getItem('omni_api_base') || getApiBase() || '');
+    input.value = sanitizeStoredApiBase(localStorage.getItem('omni_api_base')) || getApiBase() || '';
   }
 
   apiFetch('/api/db-status')
@@ -2807,9 +2926,9 @@ function copyNeonSchemaSql() {
 
 // Init on load
 window.addEventListener('DOMContentLoaded', () => {
-  // Drop stale Cloud Run overrides that made every login look like "invalid creds"
+  // Drop stale / dead Cloud Run overrides from older builds
   const storedBase = (localStorage.getItem('omni_api_base') || '').trim();
-  if (isLocalHost() && storedBase && (storedBase === PROD_BACKEND_URL || storedBase.includes('run.app'))) {
+  if (storedBase && sanitizeStoredApiBase(storedBase) === '') {
     localStorage.removeItem('omni_api_base');
   }
   const superTok = getSuperToken();
