@@ -605,11 +605,25 @@ input:focus, select:focus, textarea:focus {
         <button class="btn btn-primary btn-sm" onclick="switchTab('billing')">New sale</button>
       </div>
 
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:.82rem;font-weight:750;color:var(--text-muted)">From</label>
+          <input type="date" id="dashFromDate" style="font-family:var(--mono);font-size:.82rem"/>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <label style="font-size:.82rem;font-weight:750;color:var(--text-muted)">To</label>
+          <input type="date" id="dashToDate" style="font-family:var(--mono);font-size:.82rem"/>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="applyDashDateFilter()">Apply</button>
+        <button class="btn btn-outline btn-sm" onclick="resetDashDateFilter()">Reset</button>
+        <div style="font-size:.82rem;font-weight:750;color:var(--text-muted);margin-left:auto" id="dashTimeLabel">All time</div>
+      </div>
+
       <div class="stat-grid">
         <div class="stat-card">
           <div class="stat-num" id="ds-rev">0.00</div>
           <div class="stat-label">Revenue</div>
-          <div class="stat-sub">All time</div>
+          <div class="stat-sub" id="ds-rev-sub">All time</div>
         </div>
         <div class="stat-card b-red">
           <div class="stat-num" id="ds-orders">0</div>
@@ -2234,8 +2248,12 @@ function refreshActiveView() {
 
 // ═══════════════ 1. DASHBOARD ═══════════════
 function renderDashboard() {
-  const totalRev = sales.reduce((a, s) => a + (Number(s.total) || 0), 0);
-  const totalOrders = sales.length;
+  const { filteredSales, label } = getDashboardSalesInRange();
+  document.getElementById('dashTimeLabel') && (document.getElementById('dashTimeLabel').textContent = label);
+  document.getElementById('ds-rev-sub') && (document.getElementById('ds-rev-sub').textContent = label);
+
+  const totalRev = filteredSales.reduce((a, s) => a + (Number(s.total) || 0), 0);
+  const totalOrders = filteredSales.length;
   const avgVal = totalOrders ? totalRev / totalOrders : 0;
 
   document.getElementById('ds-rev').textContent = fmtMoney(totalRev);
@@ -2244,7 +2262,7 @@ function renderDashboard() {
 
   // Top seller
   const counts = {};
-  sales.forEach(s => {
+  filteredSales.forEach(s => {
     (s.items || []).forEach(i => { counts[i.name] = (counts[i.name] || 0) + (i.qty || 1); });
   });
   let topName = '—', topQty = 0;
@@ -2254,7 +2272,7 @@ function renderDashboard() {
 
   // Category breakdown
   const catRev = {}, catUnits = {};
-  sales.forEach(s => {
+  filteredSales.forEach(s => {
     (s.items || []).forEach(i => {
       const c = i.cat || 'General';
       catRev[c] = (catRev[c] || 0) + (Number(i.price) * (i.qty || 1));
@@ -2296,6 +2314,44 @@ function renderDashboard() {
       </tr>
     `).join('');
   }
+}
+
+function getDashboardSalesInRange() {
+  const fromStr = document.getElementById('dashFromDate')?.value || '';
+  const toStr = document.getElementById('dashToDate')?.value || '';
+  const hasFrom = !!fromStr;
+  const hasTo = !!toStr;
+
+  // Default: all time (no filter)
+  if (!hasFrom && !hasTo) return { filteredSales: sales, label: 'All time' };
+
+  const fromMs = hasFrom ? new Date(fromStr + 'T00:00:00').getTime() : -Infinity;
+  const toMs = hasTo ? new Date(toStr + 'T23:59:59').getTime() : Infinity;
+
+  const filteredSales = (sales || []).filter(s => {
+    const t = new Date(s.ts || '').getTime();
+    if (Number.isNaN(t)) return false;
+    return t >= fromMs && t <= toMs;
+  });
+
+  let label = 'Custom range';
+  if (hasFrom && !hasTo) label = `From ${fromStr}`;
+  if (!hasFrom && hasTo) label = `Up to ${toStr}`;
+  if (hasFrom && hasTo) label = `${fromStr} → ${toStr}`;
+
+  return { filteredSales, label };
+}
+
+function applyDashDateFilter() {
+  renderDashboard();
+}
+
+function resetDashDateFilter() {
+  const fromEl = document.getElementById('dashFromDate');
+  const toEl = document.getElementById('dashToDate');
+  if (fromEl) fromEl.value = '';
+  if (toEl) toEl.value = '';
+  renderDashboard();
 }
 
 // ═══════════════ 2. BILLING (POS) ═══════════════
