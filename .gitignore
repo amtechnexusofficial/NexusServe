@@ -1,0 +1,7 @@
+node_modules/
+.env
+.wrangler/
+.dev.vars
+pos_tenants_data.json
+worker/node_modules/
+worker/.wrangler/
