@@ -454,7 +454,9 @@ const SUPER_ADMIN_CREDENTIALS = {
 };
 
 app.post('/api/superadmin/login', async (req, res) => {
-  const { username, password } = req.body || {};
+  const body = req.body || {};
+  const username = String(body.username || body.email || body.user || '').trim();
+  const password = String(body.password || '');
   const userOk = username === SUPER_ADMIN_CREDENTIALS.username || username === 'admin';
   const passOk = password === SUPER_ADMIN_CREDENTIALS.password;
   if (!userOk || !passOk) {

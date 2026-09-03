@@ -459,6 +459,7 @@ input:focus, select:focus, textarea:focus {
           <input type="password" id="saPass" autocomplete="current-password" placeholder="Password" onkeydown="if(event.key==='Enter') submitSuperAdminLogin()"/>
         </div>
         <button class="btn btn-primary" id="btnSaLogin" style="justify-content:center;width:100%" onclick="submitSuperAdminLogin()">Sign in</button>
+        <p style="font-size:.78rem;color:var(--text-muted);margin:0">Demo: admin@amtechnexus.com · amtech2026</p>
         <p id="saLoginError" style="display:none;color:var(--red);font-size:.82rem;font-weight:650"></p>
       </div>
     </div>
@@ -1153,9 +1154,25 @@ function closeModal(id) { document.getElementById(id).classList.remove('show'); 
 function closeModalOut(e, id) { if (e.target.id === id) closeModal(id); }
 
 // ═══════════════ API & RESILIENT STORAGE ENGINE ═══════════════
+// Legacy Cloud Run host (often stale). Prefer same-origin when serving from this app.
 const PROD_BACKEND_URL = 'https://ais-pre-g6ixkn5zaw4hpy4iwxmqc7-241779508615.asia-southeast1.run.app';
 
+function isLocalHost() {
+  const h = window.location.hostname;
+  return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0' || h === '';
+}
+
 function getApiBase() {
+  // Always use same-origin when the UI is served by node server.js
+  if (isLocalHost() && window.location.protocol.startsWith('http')) {
+    const custom = (localStorage.getItem('omni_api_base') || '').trim();
+    // Ignore stale remote overrides that break local login
+    if (!custom || custom === PROD_BACKEND_URL || custom.includes('run.app')) {
+      return '';
+    }
+    return custom.replace(/\/+$/, '');
+  }
+
   const custom = localStorage.getItem('omni_api_base');
   if (custom !== null && custom !== undefined && custom.trim() !== '') {
     return custom.trim().replace(/\/+$/, '');
@@ -1164,6 +1181,16 @@ function getApiBase() {
     return PROD_BACKEND_URL;
   }
   return '';
+}
+
+function apiUnreachableMessage() {
+  if (window.location.protocol === 'file:') {
+    return 'Open the app at http://localhost:3000 (not as a file).';
+  }
+  if (isLocalHost()) {
+    return 'Cannot reach local API. Run: node server.js then open http://localhost:3000';
+  }
+  return 'Cannot reach API server. Check API URL in Database config.';
 }
 
 async function apiFetch(endpoint, options = {}) {
@@ -1305,11 +1332,18 @@ async function submitSuperAdminLogin() {
   const errEl = document.getElementById('saLoginError');
   const btn = document.getElementById('btnSaLogin');
   if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (!username || !password) {
+    if (errEl) {
+      errEl.style.display = 'block';
+      errEl.textContent = 'Enter email and password (demo: amtech2026)';
+    }
+    return;
+  }
   if (btn) { btn.disabled = true; btn.textContent = 'Signing in…'; }
 
   const data = await apiFetch('/api/superadmin/login', {
     method: 'POST',
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, email: username, password })
   });
 
   if (btn) { btn.disabled = false; btn.textContent = 'Sign in'; }
@@ -1317,7 +1351,9 @@ async function submitSuperAdminLogin() {
   if (!data || !data.success || !data.token) {
     if (errEl) {
       errEl.style.display = 'block';
-      errEl.textContent = (data && data.error) || 'Invalid credentials';
+      errEl.textContent = !data
+        ? apiUnreachableMessage()
+        : (data.error || 'Invalid credentials');
     }
     return;
   }
@@ -1824,7 +1860,7 @@ async function verifyPin() {
   });
 
   if (!data || !data.success || !data.token) {
-    toast((data && data.error) || 'Incorrect PIN', 'err');
+    toast(!data ? apiUnreachableMessage() : ((data && data.error) || 'Incorrect PIN'), 'err');
     pinInput = '';
     updateDots();
     return;
@@ -2719,17 +2755,17 @@ function saveAndTestApiUrl() {
 }
 
 function resetApiUrlToDefault() {
-  localStorage.setItem('omni_api_base', PROD_BACKEND_URL);
+  localStorage.removeItem('omni_api_base');
   const input = document.getElementById('cfgApiBaseUrl');
-  if (input) input.value = PROD_BACKEND_URL;
-  toast('Reset to production Cloud Run API server', 'ok');
+  if (input) input.value = getApiBase();
+  toast(isLocalHost() ? 'Using this server (same origin)' : 'Cleared custom API URL', 'ok');
   saveAndTestApiUrl();
 }
 
 function openDbConfigModal() {
   const input = document.getElementById('cfgApiBaseUrl');
   if (input) {
-    input.value = localStorage.getItem('omni_api_base') || getApiBase() || PROD_BACKEND_URL;
+    input.value = isLocalHost() ? (getApiBase() || '(same origin — leave blank)') : (localStorage.getItem('omni_api_base') || getApiBase() || '');
   }
 
   apiFetch('/api/db-status')
@@ -2771,6 +2807,11 @@ function copyNeonSchemaSql() {
 
 // Init on load
 window.addEventListener('DOMContentLoaded', () => {
+  // Drop stale Cloud Run overrides that made every login look like "invalid creds"
+  const storedBase = (localStorage.getItem('omni_api_base') || '').trim();
+  if (isLocalHost() && storedBase && (storedBase === PROD_BACKEND_URL || storedBase.includes('run.app'))) {
+    localStorage.removeItem('omni_api_base');
+  }
   const superTok = getSuperToken();
   if (superTok) setAuthToken(superTok);
   loadTenants();
