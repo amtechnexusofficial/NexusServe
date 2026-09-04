@@ -13,7 +13,7 @@ import {
 import {
   normalizeBranches, ensureTenantBranches, normalizeProduct,
   getProductStockMap, getStock, setStock, applyStockDelta,
-  isValidStaffRole, DEFAULT_BRANCH_DEFS
+  isValidStaffRole, DEFAULT_BRANCH_DEFS, getMaxBranches
 } from './data-model.js';
 
 const app = new Hono();
@@ -38,6 +38,7 @@ function mapRow(r) {
     b1name: r.b1name, b2name: r.b2name, b3name: r.b3name,
     pins: j(r.pins) || {},
     isOnboarded: r.is_onboarded !== false && r.is_onboarded !== 0,
+    maxBranches: Number(r.max_branches ?? r.maxBranches ?? 3) || 3,
     branches: j(r.branches) || undefined,
     createdAt: r.created_at
   };
@@ -106,7 +107,8 @@ async function ensureSchema(sql) {
       accent_color VARCHAR(50) DEFAULT '#3d1f0a', logo_url TEXT DEFAULT '', gst_rate NUMERIC DEFAULT 5,
       b1name VARCHAR(100) DEFAULT 'Branch 1', b2name VARCHAR(100) DEFAULT 'Branch 2',
       b3name VARCHAR(100) DEFAULT 'Branch 3', branches JSONB DEFAULT '[]', pins JSONB DEFAULT '{}',
-      is_onboarded BOOLEAN DEFAULT true, created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+      is_onboarded BOOLEAN DEFAULT true, max_branches INTEGER DEFAULT 3,
+      created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
     )`,
     `CREATE TABLE IF NOT EXISTS products (
       id VARCHAR(100) PRIMARY KEY, tenant_id VARCHAR(100) REFERENCES tenants(id) ON DELETE CASCADE,
@@ -134,6 +136,7 @@ async function ensureSchema(sql) {
     'CREATE INDEX IF NOT EXISTS idx_products_tenant ON products(tenant_id)',
     'CREATE INDEX IF NOT EXISTS idx_sales_tenant ON sales(tenant_id)',
     'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS branches JSONB',
+    'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_branches INTEGER DEFAULT 3',
     'ALTER TABLE products ADD COLUMN IF NOT EXISTS stock JSONB',
     "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''"
   ];
@@ -246,15 +249,16 @@ app.get('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
 
 app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  const { name, username, password, businessType, tagline, currency, themeColor, accentColor, logoUrl, gstRate, branches: branchInput, adminPin, isOnboarded } = body;
+  const { name, username, password, businessType, tagline, currency, themeColor, accentColor, logoUrl, gstRate, branches: branchInput, adminPin, isOnboarded, maxBranches: maxBranchesIn } = body;
   if (!name) return c.json({ error: 'Tenant business name is required' }, 400);
 
   const cleanId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.floor(1000 + Math.random() * 9000);
   const code = username ? username.toLowerCase().replace(/[^a-z0-9_]/g, '') : name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   const user = username ? username.trim().toLowerCase() : code;
   const pass = password ? password.trim() : 'pos' + Math.floor(1000 + Math.random() * 9000);
+  const maxBranches = getMaxBranches({ maxBranches: maxBranchesIn != null ? maxBranchesIn : 3 });
 
-  const branchDefs = (Array.isArray(branchInput) && branchInput.length > 0)
+  let branchDefs = (Array.isArray(branchInput) && branchInput.length > 0)
     ? branchInput.map((b, i) => ({
         id: String(b.id || `b${i + 1}`).replace(/[^a-z0-9_]/gi, '') || `b${i + 1}`,
         name: (b.name || `Branch ${i + 1}`).trim(),
@@ -262,6 +266,8 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
         pin: String(b.pin || DEFAULT_BRANCH_DEFS[Math.min(i, DEFAULT_BRANCH_DEFS.length - 1)]?.defaultPin || '1111')
       }))
     : DEFAULT_BRANCH_DEFS.map((d, i) => ({ id: d.id, name: d.name, sortOrder: i, pin: d.defaultPin }));
+  branchDefs = branchDefs.slice(0, maxBranches);
+  if (!branchDefs.length) branchDefs = [{ id: 'b1', name: 'Main Branch', sortOrder: 0, pin: '1111' }];
 
   const plainPins = { admin: adminPin || '1234' };
   for (const b of branchDefs) plainPins[b.id] = b.pin;
@@ -272,15 +278,15 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
   const sql = getSql(c.env);
 
   await query(sql, `
-    INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb,$18)
+    INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded, max_branches)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb,$18,$19)
   `, [
     cleanId, name.trim(), code, user, hashedPw,
     businessType || 'Food & Retail', tagline || 'Quality Products & Efficient Service',
     currency || '₹', themeColor || '#e4a11b', accentColor || '#111111', logoUrl || '',
     Number(gstRate ?? 5),
     branches[0]?.name || 'Branch 1', branches[1]?.name || 'Branch 2', branches[2]?.name || 'Branch 3',
-    JSON.stringify(branches), JSON.stringify(hashedPins), !!isOnboarded
+    JSON.stringify(branches), JSON.stringify(hashedPins), !!isOnboarded, maxBranches
   ]);
 
   for (let i = 0; i < DEFAULT_SEED_ITEMS.length; i++) {
@@ -292,7 +298,7 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
     await persistProduct(sql, cleanId, item, branches);
   }
 
-  const newTenant = { id: cleanId, name: name.trim(), code, username: user, businessType: businessType || 'Food & Retail', branches };
+  const newTenant = { id: cleanId, name: name.trim(), code, username: user, businessType: businessType || 'Food & Retail', branches, maxBranches };
   return c.json({
     success: true,
     tenant: safePub(newTenant),
@@ -306,6 +312,15 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
   const tenant = await loadTenant(sql, tenantId);
   if (!tenant) return c.json({ error: 'Tenant not found' }, 404);
   const updates = await c.req.json().catch(() => ({}));
+  const user = c.get('user');
+
+  if (user?.role !== 'superadmin') {
+    delete updates.maxBranches;
+    delete updates.max_branches;
+  } else if (updates.maxBranches != null || updates.max_branches != null) {
+    updates.maxBranches = getMaxBranches({ maxBranches: updates.maxBranches ?? updates.max_branches });
+    delete updates.max_branches;
+  }
 
   if (updates.password) {
     updates.password = isHashed(updates.password) ? updates.password : await hashSecret(updates.password);
@@ -320,6 +335,14 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
       name: (b.name || `Branch ${i + 1}`).trim(),
       sortOrder: b.sortOrder != null ? Number(b.sortOrder) : i
     }));
+    const maxAllowed = getMaxBranches({
+      maxBranches: updates.maxBranches != null ? updates.maxBranches : tenant.maxBranches
+    });
+    if (newBranches.length > maxAllowed) {
+      return c.json({
+        error: `This business is limited to ${maxAllowed} branch${maxAllowed === 1 ? '' : 'es'}. Contact your provider to raise the limit.`
+      }, 400);
+    }
   }
 
   let newPins = tenant.pins;
@@ -343,8 +366,9 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
       b1name = COALESCE($9, b1name), b2name = COALESCE($10, b2name), b3name = COALESCE($11, b3name),
       branches = $12::jsonb, pins = $13::jsonb,
       username = COALESCE($14, username), password = COALESCE($15, password),
-      is_onboarded = COALESCE($16, is_onboarded)
-    WHERE id = $17
+      is_onboarded = COALESCE($16, is_onboarded),
+      max_branches = COALESCE($17, max_branches)
+    WHERE id = $18
   `, [
     updates.name || null, updates.businessType || null, updates.tagline || null,
     updates.currency || null, updates.themeColor || null, updates.accentColor || null,
@@ -353,6 +377,7 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
     JSON.stringify(newBranches), JSON.stringify(newPins),
     updates.username || null, updates.password || null,
     updates.isOnboarded != null ? !!updates.isOnboarded : null,
+    updates.maxBranches != null ? updates.maxBranches : null,
     tenantId
   ]);
 

@@ -952,9 +952,10 @@ input:focus, select:focus, textarea:focus {
 
           <hr style="border:none;border-top:1px solid var(--border);margin:16px 0"/>
 
-          <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:10px">Branches</h4>
+          <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Branches</h4>
+          <p id="admBranchLimitHint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"></p>
           <div id="admBranchesList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
-          <button type="button" class="btn btn-outline btn-sm" onclick="addAdminBranchRow()">Add branch</button>
+          <button type="button" class="btn btn-outline btn-sm" id="btnAddAdminBranch" onclick="addAdminBranchRow()">Add branch</button>
         </div>
       </div>
     </div>
@@ -997,6 +998,11 @@ input:focus, select:focus, textarea:focus {
           <input type="password" id="newTenantPin" maxlength="4" value="1234" onkeydown="if(event.key==='Enter') submitCreateTenant()"/>
         </div>
       </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label>Max branches allowed *</label>
+        <input type="number" id="newTenantMaxBranches" min="1" max="50" value="3" onkeydown="if(event.key==='Enter') submitCreateTenant()"/>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">Shop admins cannot add more branches than this limit.</div>
+      </div>
       <div style="background:#f1f5f9;border-radius:var(--radius-sm);padding:10px 14px;font-size:.8rem;color:var(--text-muted);display:flex;align-items:center;gap:8px">
         <span>🔒</span>
         <span>Instantly provisions an isolated database tenant boundary, starter menu, and admin access.</span>
@@ -1005,6 +1011,29 @@ input:focus, select:focus, textarea:focus {
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal('createTenantModal')">Cancel</button>
       <button class="btn btn-primary" id="btnSubmitTenant" onclick="submitCreateTenant()">Create Isolated Shop</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Edit branch limit (master portal) -->
+<div class="modal-overlay" id="editMaxBranchesModal" onclick="closeModalOut(event,'editMaxBranchesModal')">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">Branch allowance</div>
+      <button class="modal-close" onclick="closeModal('editMaxBranchesModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p id="editMaxBranchesShopName" style="font-weight:650;margin-bottom:12px"></p>
+      <div class="form-group">
+        <label>Max branches allowed</label>
+        <input type="number" id="editMaxBranchesValue" min="1" max="50"/>
+        <div style="font-size:.75rem;color:var(--text-muted);margin-top:4px">Shop cannot add branches beyond this number.</div>
+      </div>
+      <input type="hidden" id="editMaxBranchesTenantId"/>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('editMaxBranchesModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitEditMaxBranches()">Save limit</button>
     </div>
   </div>
 </div>
@@ -1355,6 +1384,12 @@ function getBranches(tenant = currentTenant) {
     out.push({ id, name: tenant[id + 'name'] || ('Branch ' + i), sortOrder: i - 1 });
   }
   return out;
+}
+
+function getMaxBranches(tenant = currentTenant) {
+  const n = Number(tenant?.maxBranches ?? tenant?.max_branches);
+  if (!Number.isFinite(n) || n < 1) return 3;
+  return Math.min(50, Math.floor(n));
 }
 
 function getProductStock(product, branchId) {
@@ -1840,19 +1875,25 @@ function renderTenantList() {
     return;
   }
 
-  list.innerHTML = tenants.map(t => `
+  list.innerHTML = tenants.map(t => {
+    const maxB = getMaxBranches(t);
+    const used = getBranches(t).length;
+    return `
     <div class="tenant-item" onclick="chooseTenant('${t.id}')">
       <div class="tenant-avatar" style="border-color:${t.themeColor || '#cbd5e1'}">
         ${t.logoUrl ? `<img src="${t.logoUrl}" alt="${t.name}"/>` : `<span>${(t.name || '?').charAt(0)}</span>`}
       </div>
       <div class="tenant-info">
         <div class="tenant-name">${t.name}</div>
-        <div class="tenant-desc">${t.businessType || 'Retail POS'} · ${t.tagline || ''}</div>
+        <div class="tenant-desc">${t.businessType || 'Retail POS'} · ${used}/${maxB} branches</div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
         <span class="tenant-badge" style="background:${t.themeColor || '#e2e8f0'}22;color:${t.themeColor || '#0f172a'};font-weight:700">
-          ${t.currency || '$'} Active
+          Max ${maxB}
         </span>
+        <button class="btn btn-sm btn-outline" style="padding:5px 9px;font-size:.76rem" title="Set max branches" onclick="event.stopPropagation(); openEditMaxBranches('${t.id}')">
+          Limit
+        </button>
         <button class="btn btn-sm btn-outline" style="padding:5px 9px;font-size:.76rem" title="Copy isolated customer login link" onclick="event.stopPropagation(); copyCustomerLink('${t.id}')">
           Link
         </button>
@@ -1860,8 +1901,54 @@ function renderTenantList() {
           Open
         </button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
+}
+
+function openEditMaxBranches(tenantId) {
+  const t = tenants.find(x => x.id === tenantId);
+  if (!t) return;
+  document.getElementById('editMaxBranchesTenantId').value = t.id;
+  document.getElementById('editMaxBranchesShopName').textContent = t.name;
+  document.getElementById('editMaxBranchesValue').value = getMaxBranches(t);
+  openModal('editMaxBranchesModal');
+}
+
+async function submitEditMaxBranches() {
+  const tenantId = document.getElementById('editMaxBranchesTenantId').value;
+  const raw = parseInt(document.getElementById('editMaxBranchesValue').value, 10);
+  const maxBranches = (!Number.isFinite(raw) || raw < 1) ? 1 : Math.min(50, raw);
+  const t = tenants.find(x => x.id === tenantId);
+  if (!t) return;
+
+  const currentCount = getBranches(t).length;
+  if (maxBranches < currentCount) {
+    toast(`This shop already has ${currentCount} branches. Remove extras in shop settings first, or set max ≥ ${currentCount}.`, 'err');
+    return;
+  }
+
+  const superTok = getSuperToken();
+  if (superTok) setAuthToken(superTok);
+
+  const data = await apiFetch(`/api/tenants/${tenantId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ maxBranches })
+  });
+
+  if (data && data.success === false) {
+    toast(data.error || 'Could not update branch limit', 'err');
+    return;
+  }
+
+  t.maxBranches = maxBranches;
+  if (data && data.tenant) Object.assign(t, data.tenant);
+  saveLocalTenant(t);
+  if (currentTenant && currentTenant.id === tenantId) {
+    currentTenant.maxBranches = maxBranches;
+  }
+  closeModal('editMaxBranchesModal');
+  renderTenantList();
+  toast(`Branch limit set to ${maxBranches} for ${t.name}`, 'ok');
 }
 
 function quickLaunchTenant(tenantId) {
@@ -1943,6 +2030,8 @@ async function submitCreateTenant() {
   const currency = document.getElementById('newTenantCurrency').value.trim() || '₹';
   const themeColor = document.getElementById('newTenantColor').value || '#0284c7';
   const adminPin = document.getElementById('newTenantPin').value.trim() || '1234';
+  const maxRaw = parseInt(document.getElementById('newTenantMaxBranches')?.value, 10);
+  const maxBranches = (!Number.isFinite(maxRaw) || maxRaw < 1) ? 3 : Math.min(50, maxRaw);
 
   if (!name) {
     toast('Please enter a shop name', 'err');
@@ -1958,11 +2047,15 @@ async function submitCreateTenant() {
   const cleanId = `${baseSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
   const code = name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8) || 'pos';
 
-  const defaultBranches = [
-    { id: 'b1', name: 'Main Branch', sortOrder: 0 },
-    { id: 'b2', name: 'Counter 2', sortOrder: 1 },
-    { id: 'b3', name: 'Delivery Unit', sortOrder: 2 }
+  const allDefaultBranches = [
+    { id: 'b1', name: 'Main Branch', sortOrder: 0, pin: '1111' },
+    { id: 'b2', name: 'Counter 2', sortOrder: 1, pin: '2222' },
+    { id: 'b3', name: 'Delivery Unit', sortOrder: 2, pin: '3333' }
   ];
+  const defaultBranches = allDefaultBranches.slice(0, maxBranches).map(({ id, name, sortOrder }) => ({ id, name, sortOrder }));
+  const pins = { admin: adminPin };
+  for (const b of allDefaultBranches.slice(0, maxBranches)) pins[b.id] = b.pin;
+
   const newTenantObj = {
     id: cleanId,
     name,
@@ -1976,24 +2069,27 @@ async function submitCreateTenant() {
     accentColor: '#0f172a',
     logoUrl: '',
     gstRate: 5,
+    maxBranches,
     branches: defaultBranches,
-    b1name: 'Main Branch',
-    b2name: 'Counter 2',
-    b3name: 'Delivery Unit',
-    pins: { admin: adminPin, b1: '1111', b2: '2222', b3: '3333' },
+    pins,
     isOnboarded: true,
     createdAt: new Date().toISOString()
   };
+  for (const b of defaultBranches) {
+    if (/^b[1-9]\d*$/.test(b.id)) newTenantObj[b.id + 'name'] = b.name;
+  }
 
   // Immediate save to client database
   saveLocalTenant(newTenantObj);
 
   // Background sync to backend database (Neon or JSON)
   try {
+    const superTok = getSuperToken();
+    if (superTok) setAuthToken(superTok);
     const data = await apiFetch('/api/tenants', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, businessType, currency, themeColor, adminPin, branches: defaultBranches })
+      body: JSON.stringify({ name, businessType, currency, themeColor, adminPin, maxBranches, branches: defaultBranches })
     });
     
     if (data && data.success && data.tenant) {
@@ -3003,6 +3099,36 @@ function exportExcel() {
 }
 
 // ═══════════════ 8. CLIENT BRANDING & LOGO UPLOAD ═══════════════
+function updateAdminBranchAddBtn() {
+  const wrap = document.getElementById('admBranchesList');
+  const btn = document.getElementById('btnAddAdminBranch');
+  const hint = document.getElementById('admBranchLimitHint');
+  if (!currentTenant) return;
+  const max = getMaxBranches(currentTenant);
+  const count = wrap ? wrap.children.length : getBranches(currentTenant).length;
+  if (hint) {
+    hint.textContent = count >= max
+      ? `Limit reached: ${count} of ${max} branches allowed. Contact your provider to raise this.`
+      : `Using ${count} of ${max} allowed branches.`;
+  }
+  if (btn) {
+    btn.disabled = count >= max;
+    btn.title = count >= max ? `Max ${max} branches allowed for this business` : 'Add another branch';
+    btn.style.opacity = count >= max ? '0.45' : '1';
+    btn.style.cursor = count >= max ? 'not-allowed' : 'pointer';
+  }
+}
+
+function removeAdminBranchRow(btn) {
+  const wrap = document.getElementById('admBranchesList');
+  if (!wrap || wrap.children.length <= 1) {
+    toast('At least one branch is required', 'warn');
+    return;
+  }
+  btn.closest('[data-adm-branch]')?.remove();
+  updateAdminBranchAddBtn();
+}
+
 function renderAdminBranchesEditor() {
   const wrap = document.getElementById('admBranchesList');
   if (!wrap || !currentTenant) return;
@@ -3021,13 +3147,20 @@ function renderAdminBranchesEditor() {
         <label>New PIN (optional)</label>
         <input type="password" maxlength="8" placeholder="Leave blank to keep" data-field="pin"/>
       </div>
-      <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('[data-adm-branch]').remove()">Remove</button>
+      <button type="button" class="btn btn-sm btn-danger" onclick="removeAdminBranchRow(this)">Remove</button>
     </div>`).join('');
+  updateAdminBranchAddBtn();
 }
 
 function addAdminBranchRow() {
   const wrap = document.getElementById('admBranchesList');
-  if (!wrap) return;
+  if (!wrap || !currentTenant) return;
+  const max = getMaxBranches(currentTenant);
+  if (wrap.children.length >= max) {
+    toast(`This business is limited to ${max} branch${max === 1 ? '' : 'es'}`, 'err');
+    updateAdminBranchAddBtn();
+    return;
+  }
   const n = wrap.children.length + 1;
   const id = 'b' + n + '_' + Math.floor(Math.random() * 1000);
   const div = document.createElement('div');
@@ -3038,8 +3171,9 @@ function addAdminBranchRow() {
     <div class="form-group"><label>Branch id</label><input type="text" value="${id}" data-field="id"/></div>
     <div class="form-group"><label>Name</label><input type="text" value="Branch ${n}" data-field="name"/></div>
     <div class="form-group"><label>PIN</label><input type="password" maxlength="8" value="1111" data-field="pin"/></div>
-    <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('[data-adm-branch]').remove()">Remove</button>`;
+    <button type="button" class="btn btn-sm btn-danger" onclick="removeAdminBranchRow(this)">Remove</button>`;
   wrap.appendChild(div);
+  updateAdminBranchAddBtn();
 }
 
 function collectAdminBranches() {
@@ -3123,6 +3257,11 @@ async function saveTenantBranding() {
   const gstRate = parseFloat(document.getElementById('adm-gstRate').value) || 0;
   const { branches, pinPlaintext } = collectAdminBranches();
   if (!branches.length) { toast('Add at least one branch', 'err'); return; }
+  const maxAllowed = getMaxBranches(currentTenant);
+  if (branches.length > maxAllowed) {
+    toast(`This business is limited to ${maxAllowed} branch${maxAllowed === 1 ? '' : 'es'}`, 'err');
+    return;
+  }
 
   const updates = {
     name, businessType, tagline, themeColor, accentColor,

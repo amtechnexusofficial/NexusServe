@@ -114,3 +114,10 @@ export function branchLabel(tenant, branchId) {
   if (b) return b.name;
   return tenant[`${branchId}name`] || branchId;
 }
+
+/** Max branches this business may have (set by superadmin). Default 3. */
+export function getMaxBranches(tenant = {}) {
+  const n = Number(tenant.maxBranches ?? tenant.max_branches);
+  if (!Number.isFinite(n) || n < 1) return 3;
+  return Math.min(50, Math.floor(n));
+}

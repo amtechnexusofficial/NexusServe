@@ -28,7 +28,8 @@ import {
   applyStockDelta,
   isValidStaffRole,
   branchLabel,
-  DEFAULT_BRANCH_DEFS
+  DEFAULT_BRANCH_DEFS,
+  getMaxBranches
 } from './data-model.js';
 
 dotenv.config();
@@ -200,6 +201,7 @@ function mapPgTenantRow(r) {
     b3name: r.b3name,
     pins: typeof r.pins === 'string' ? JSON.parse(r.pins) : (r.pins || {}),
     isOnboarded: r.is_onboarded !== false,
+    maxBranches: Number(r.max_branches ?? r.maxBranches ?? 3) || 3,
     branches: r.branches
       ? (typeof r.branches === 'string' ? JSON.parse(r.branches) : r.branches)
       : undefined
@@ -350,6 +352,7 @@ async function initPgTables() {
       ALTER TABLE tenants ALTER COLUMN password TYPE VARCHAR(255);
       ALTER TABLE tenants ADD COLUMN IF NOT EXISTS branches JSONB;
       ALTER TABLE tenants ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT true;
+      ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_branches INTEGER DEFAULT 3;
 
       ALTER TABLE products ADD COLUMN IF NOT EXISTS stock JSONB;
 
@@ -582,15 +585,16 @@ app.get('/api/tenants', authRequired, requireSuperAdmin, async (req, res) => {
 
 // 3. Register / Create New Client Credentials (by AMtechnexus)
 app.post('/api/tenants', authRequired, requireSuperAdmin, async (req, res) => {
-  const { name, username, password, businessType, tagline, currency, themeColor, accentColor, logoUrl, gstRate, branches: branchInput, adminPin, isOnboarded } = req.body;
+  const { name, username, password, businessType, tagline, currency, themeColor, accentColor, logoUrl, gstRate, branches: branchInput, adminPin, isOnboarded, maxBranches: maxBranchesIn } = req.body;
   if (!name) return res.status(400).json({ error: 'Tenant business name is required' });
 
   const cleanId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.floor(1000 + Math.random() * 9000);
   const code = username ? username.toLowerCase().replace(/[^a-z0-9_]/g, '') : name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
   const user = username ? username.trim().toLowerCase() : code;
   const pass = password ? password.trim() : 'pos' + Math.floor(1000 + Math.random() * 9000);
+  const maxBranches = getMaxBranches({ maxBranches: maxBranchesIn != null ? maxBranchesIn : 3 });
 
-  const branchDefs = (Array.isArray(branchInput) && branchInput.length > 0)
+  let branchDefs = (Array.isArray(branchInput) && branchInput.length > 0)
     ? branchInput.map((b, i) => ({
         id: String(b.id || `b${i + 1}`).replace(/[^a-z0-9_]/gi, '') || `b${i + 1}`,
         name: (b.name || `Branch ${i + 1}`).trim(),
@@ -598,6 +602,12 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (req, res) => {
         pin: String(b.pin || DEFAULT_BRANCH_DEFS[Math.min(i, DEFAULT_BRANCH_DEFS.length - 1)]?.defaultPin || '1111')
       }))
     : DEFAULT_BRANCH_DEFS.map((d, i) => ({ id: d.id, name: d.name, sortOrder: i, pin: d.defaultPin }));
+
+  // Cap initial branches to the allowed maximum
+  branchDefs = branchDefs.slice(0, maxBranches);
+  if (branchDefs.length === 0) {
+    branchDefs = [{ id: 'b1', name: 'Main Branch', sortOrder: 0, pin: '1111' }];
+  }
 
   const plainPins = { admin: adminPin || '1234' };
   for (const b of branchDefs) plainPins[b.id] = b.pin;
@@ -615,6 +625,7 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (req, res) => {
     accentColor: accentColor || '#111111',
     logoUrl: logoUrl || '',
     gstRate: Number(gstRate ?? 5),
+    maxBranches,
     branches: branchDefs.map(({ id, name, sortOrder }) => ({ id, name, sortOrder })),
     pins: await hashPins(plainPins),
     isOnboarded: isOnboarded === true ? true : false,
@@ -625,14 +636,15 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (req, res) => {
   if (pool) {
     try {
       await pool.query(`
-        INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+        INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded, max_branches)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
       `, [
         newTenant.id, newTenant.name, newTenant.code, newTenant.username, newTenant.password,
         newTenant.businessType, newTenant.tagline, newTenant.currency, newTenant.themeColor,
         newTenant.accentColor, newTenant.logoUrl, newTenant.gstRate,
         newTenant.b1name || null, newTenant.b2name || null, newTenant.b3name || null,
-        JSON.stringify(newTenant.branches), JSON.stringify(newTenant.pins), newTenant.isOnboarded
+        JSON.stringify(newTenant.branches), JSON.stringify(newTenant.pins), newTenant.isOnboarded,
+        newTenant.maxBranches
       ]);
 
       for (let i = 0; i < DEFAULT_SEED_ITEMS.length; i++) {
@@ -696,6 +708,15 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
     tenant = loaded;
   }
 
+  // Only superadmin may change the branch allowance
+  if (req.user?.role !== 'superadmin') {
+    delete updates.maxBranches;
+    delete updates.max_branches;
+  } else if (updates.maxBranches != null || updates.max_branches != null) {
+    updates.maxBranches = getMaxBranches({ maxBranches: updates.maxBranches ?? updates.max_branches });
+    delete updates.max_branches;
+  }
+
   if (updates.password) {
     updates.password = isBcryptHash(updates.password)
       ? updates.password
@@ -710,6 +731,14 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
       name: (b.name || `Branch ${i + 1}`).trim(),
       sortOrder: b.sortOrder != null ? Number(b.sortOrder) : i
     }));
+    const maxAllowed = getMaxBranches({
+      maxBranches: updates.maxBranches != null ? updates.maxBranches : tenant.maxBranches
+    });
+    if (updates.branches.length > maxAllowed) {
+      return res.status(400).json({
+        error: `This business is limited to ${maxAllowed} branch${maxAllowed === 1 ? '' : 'es'}. Contact your provider to raise the limit.`
+      });
+    }
   }
 
   if (updates.pinPlaintext && typeof updates.pinPlaintext === 'object') {
@@ -763,8 +792,9 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
           pins = COALESCE($13, pins),
           username = COALESCE($14, username),
           password = COALESCE($15, password),
-          is_onboarded = COALESCE($16, is_onboarded)
-        WHERE id = $17
+          is_onboarded = COALESCE($16, is_onboarded),
+          max_branches = COALESCE($17, max_branches)
+        WHERE id = $18
       `, [
         updates.name, updates.businessType, updates.tagline, updates.currency,
         updates.themeColor, updates.accentColor, updates.logoUrl, updates.gstRate,
@@ -772,6 +802,7 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
         updates.branches ? JSON.stringify(tenant.branches) : null,
         updates.pins ? JSON.stringify(tenant.pins) : null,
         updates.username, updates.password || null, updates.isOnboarded,
+        updates.maxBranches != null ? updates.maxBranches : null,
         tenantId
       ]);
     } catch (e) {
