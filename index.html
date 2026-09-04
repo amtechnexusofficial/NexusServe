@@ -1929,6 +1929,35 @@ async function apiFetch(endpoint, options = {}) {
 
 const AUTH_TOKEN_KEY = 'omni_token';
 const SUPER_TOKEN_KEY = 'omni_super_token';
+const LOCAL_STORE_VERSION = 'cloud-v2';
+
+function purgeStaleLocalCaches() {
+  const keys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (!k) continue;
+    if (
+      k === 'omni_tenants' ||
+      k.startsWith('omni_prods_') ||
+      k.startsWith('omni_sales_') ||
+      k.startsWith('omni_stocklogs_') ||
+      k.startsWith('omni_transfers_')
+    ) keys.push(k);
+  }
+  keys.forEach(k => localStorage.removeItem(k));
+}
+
+function ensureCloudOnlyStore() {
+  // Drop offline demo sessions and old browser-local shop lists once
+  if (isOfflineToken(getAuthToken()) || isOfflineToken(getSuperToken())) {
+    setAuthToken('');
+    setSuperToken('');
+  }
+  if (localStorage.getItem('omni_store_ver') !== LOCAL_STORE_VERSION) {
+    purgeStaleLocalCaches();
+    localStorage.setItem('omni_store_ver', LOCAL_STORE_VERSION);
+  }
+}
 
 function getAuthToken() {
   return sessionStorage.getItem(AUTH_TOKEN_KEY) || '';
@@ -2155,26 +2184,9 @@ async function submitSuperAdminLogin() {
     return;
   }
 
-  // Browser-local fallback when Pages has no (or dead) backend
-  const userOk = username === DEMO_SUPER_USER || username === 'admin';
-  const passOk = password === DEMO_SUPER_PASS;
-  const canOffline = !isLocalHost() || !(await probeApiReachable());
-  if (userOk && passOk && (data === null || canOffline)) {
-    const tok = issueOfflineToken('super');
-    setSuperToken(tok);
-    setAuthToken(tok);
-    document.getElementById('saPass').value = '';
-    showTenantSelect();
-    await loadTenants({ skipRouting: true, requireAuth: true });
-    toast('Signed in (browser-local mode — no live API)', 'warn');
-    return;
-  }
-
   if (errEl) {
     errEl.style.display = 'block';
-    errEl.textContent = data && data.error
-      ? data.error
-      : (userOk && !passOk ? 'Invalid credentials' : apiUnreachableMessage());
+    errEl.textContent = (data && data.error) ? data.error : apiUnreachableMessage();
   }
 }
 
@@ -2375,25 +2387,10 @@ async function loadTenants(opts = {}) {
   }
 
   showTenantSelect();
-  // Prefer last cloud snapshot for first paint; avoid inventing demo shops when cache is empty.
-  let cached = [];
-  try {
-    const raw = localStorage.getItem('omni_tenants');
-    if (raw) {
-      const arr = JSON.parse(raw);
-      if (Array.isArray(arr)) cached = arr;
-    }
-  } catch (e) {}
-  tenants = cached.map(t => {
-    const { password, pins, ...safe } = t;
-    return safe;
-  });
-  if (tenants.length) renderTenantList();
-  else {
-    const list = document.getElementById('tenantList');
-    if (list) {
-      list.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted)">Loading shops…</div>`;
-    }
+  tenants = [];
+  const listEl = document.getElementById('tenantList');
+  if (listEl) {
+    listEl.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted)">Loading shops from database…</div>`;
   }
 
   try {
@@ -2405,29 +2402,32 @@ async function loadTenants(opts = {}) {
       return;
     }
     if (data && data.success && Array.isArray(data.tenants)) {
-      // Cloud is source of truth — do not merge leftover browser-local/demo shops
       tenants = data.tenants.map(t => {
         const { password, pins, ...safe } = t;
         return safe;
       });
       try { localStorage.setItem('omni_tenants', JSON.stringify(tenants)); } catch(e) {}
       renderTenantList();
-    } else if (!tenants.length) {
-      // API unavailable and no cache: offline demo starters only
-      tenants = getLocalTenants().map(t => {
-        const { password, pins, ...safe } = t;
-        return safe;
-      });
-      renderTenantList();
+      return;
+    }
+    tenants = [];
+    if (listEl) {
+      listEl.innerHTML = `
+        <div style="text-align:center;padding:24px;color:var(--text-muted)">
+          <p style="margin-bottom:8px">Could not load shops from the database.</p>
+          <p style="font-size:.82rem;margin-bottom:12px">Check API settings / network, then try again.</p>
+          <button class="btn btn-primary btn-sm" onclick="loadTenants({ skipRouting: true, requireAuth: true })">Retry</button>
+        </div>`;
     }
   } catch (err) {
-    console.warn('Using local tenant store:', err);
-    if (!tenants.length) {
-      tenants = getLocalTenants().map(t => {
-        const { password, pins, ...safe } = t;
-        return safe;
-      });
-      renderTenantList();
+    console.warn('Tenant load failed:', err);
+    tenants = [];
+    if (listEl) {
+      listEl.innerHTML = `
+        <div style="text-align:center;padding:24px;color:var(--text-muted)">
+          <p style="margin-bottom:12px">Database unreachable.</p>
+          <button class="btn btn-primary btn-sm" onclick="loadTenants({ skipRouting: true, requireAuth: true })">Retry</button>
+        </div>`;
     }
   }
 }
@@ -2670,10 +2670,6 @@ async function submitCreateTenant() {
     if (/^b[1-9]\d*$/.test(b.id)) newTenantObj[b.id + 'name'] = b.name;
   }
 
-  // Immediate save to client database
-  saveLocalTenant(newTenantObj);
-
-  // Background sync to backend database (Neon or JSON)
   try {
     const superTok = getSuperToken();
     if (superTok) setAuthToken(superTok);
@@ -2684,24 +2680,18 @@ async function submitCreateTenant() {
     });
     
     if (data && data.success && data.tenant) {
-      saveLocalTenant(data.tenant);
-      toast(`Customer workspace "${name}" created in Cloud Database!`, 'ok');
+      toast(`Customer workspace "${name}" created`, 'ok');
       closeModal('createTenantModal');
-      await loadTenants();
+      await loadTenants({ skipRouting: true, requireAuth: true });
       chooseTenant(data.tenant.id);
       return;
     }
+    toast((data && data.error) || 'Could not create shop in database', 'err');
   } catch (err) {
-    console.warn('Cloud sync deferred, saved locally:', err);
+    toast('Could not create shop in database', 'err');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Isolated Shop'; }
   }
-
-  // Graceful completion
-  toast(`Customer workspace "${name}" created!`, 'ok');
-  closeModal('createTenantModal');
-  await loadTenants();
-  chooseTenant(newTenantObj.id);
 }
 
 // ═══════════════ ROLE & PIN VERIFICATION ═══════════════
@@ -2739,7 +2729,6 @@ function updateDots() {
 
 async function verifyPin() {
   if (!currentTenant) return;
-  const intentionalOffline = isOfflineToken(getSuperToken()) || isOfflineToken(getAuthToken()) || (isStaticHost() && !getApiBase());
 
   const data = await apiFetch(`/api/tenants/${encodeURIComponent(currentTenant.id)}/verify-pin`, {
     method: 'POST',
@@ -2753,40 +2742,7 @@ async function verifyPin() {
     return;
   }
 
-  // Live API rejected this PIN — do not fall back to demo codes
-  if (data && (data.status === 401 || data.error)) {
-    toast(data.error || 'Incorrect PIN', 'err');
-    pinInput = '';
-    updateDots();
-    return;
-  }
-
-  // Offline / browser-local only
-  if (!intentionalOffline && data !== null) {
-    toast((data && data.error) || 'PIN verification failed', 'err');
-    pinInput = '';
-    updateDots();
-    return;
-  }
-
-  const demos = { admin: '1234', b1: '1111', b2: '2222', b3: '3333' };
-  getBranches().forEach((b, i) => {
-    if (!demos[b.id]) demos[b.id] = String(1111 * (i + 1)).slice(0, 4);
-  });
-  const localPins = (currentTenant && currentTenant.pins) || {};
-  const stored = localPins[pinRole];
-  const expected = (typeof stored === 'string' && !String(stored).startsWith('$2'))
-    ? stored
-    : demos[pinRole];
-
-  if (expected && pinInput === String(expected)) {
-    setAuthToken(issueOfflineToken('tenant_' + currentTenant.id + '_' + pinRole));
-    await loginSuccess(pinRole);
-    toast('PIN accepted (browser-local mode)', 'warn');
-    return;
-  }
-
-  toast('Incorrect PIN', 'err');
+  toast((data && data.error) || (data === null ? 'Database unreachable' : 'Incorrect PIN'), 'err');
   pinInput = '';
   updateDots();
 }
@@ -2874,29 +2830,29 @@ function applyTenantTheme(t) {
 async function loadTenantData() {
   if (!currentTenant) return;
 
-  // 1. Immediately hydrate from local storage for instant render
-  const local = getLocalData(currentTenant.id);
-  products = local.products || [];
-  sales = local.sales || [];
-  stockLogs = local.stockLogs || [];
-  transfers = local.transfers || [];
-  refreshActiveView();
+  products = [];
+  sales = [];
+  stockLogs = [];
+  transfers = [];
 
-  // 2. Fetch latest data from backend API
   try {
     const data = await apiFetch(`/api/tenant/${currentTenant.id}/data`);
     if (data && data.success) {
-      products = data.products || products;
-      sales = data.sales || sales;
-      stockLogs = data.stockLogs || stockLogs;
-      transfers = data.transfers || transfers;
+      products = data.products || [];
+      sales = data.sales || [];
+      stockLogs = data.stockLogs || [];
+      transfers = data.transfers || [];
       if (data.tenant) currentTenant = { ...currentTenant, ...data.tenant };
       if (data.branches) currentTenant.branches = data.branches;
-      saveLocalData(currentTenant.id, { products, sales, stockLogs, transfers });
       refreshActiveView();
+      return;
     }
+    toast((data && data.error) || 'Could not load shop data from database', 'err');
+    refreshActiveView();
   } catch (err) {
-    console.warn('Operating in local tenant storage mode:', err);
+    console.warn('Tenant data load failed:', err);
+    toast('Could not load shop data from database', 'err');
+    refreshActiveView();
   }
 }
 
@@ -3225,56 +3181,23 @@ async function completeSale() {
 
   if (btn) { btn.disabled = true; btn.textContent = 'Processing…'; }
 
-  const offline = isOfflineToken() || (isStaticHost() && !getApiBase());
-  let recorded = null;
+  const data = await apiFetch(`/api/tenant/${currentTenant.id}/sales`, {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
 
-  if (!offline) {
-    const data = await apiFetch(`/api/tenant/${currentTenant.id}/sales`, {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-    if (data && data.success && data.sale) {
-      recorded = data.sale;
-      if (Array.isArray(data.products) && data.products.length) {
-        data.products.forEach(upd => {
-          const i = products.findIndex(p => p.id === upd.id);
-          if (i >= 0) products[i] = { ...products[i], ...upd };
-        });
-      }
-    } else if (data && data.success === false) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Complete sale'; }
-      toast(data.error || 'Sale failed', 'err');
-      return;
-    } else if (data === null && !offline) {
-      // API unreachable mid-session — fall through to local queue
-    } else if (data && !data.success) {
-      if (btn) { btn.disabled = false; btn.textContent = 'Complete sale'; }
-      toast(data.error || 'Sale failed', 'err');
-      return;
-    }
+  if (!(data && data.success && data.sale)) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Complete sale'; }
+    toast((data && data.error) || 'Could not save sale to database', 'err');
+    return;
   }
 
-  if (!recorded) {
-    // Local / offline record (single stock deduct)
-    const curData = getLocalData(currentTenant.id);
-    recorded = { ...payload, tenantId: currentTenant.id, ts: new Date().toISOString() };
-    curData.sales = curData.sales || [];
-    curData.sales.unshift(recorded);
-    cart.forEach(item => {
-      const prod = (curData.products || []).find(p => p.id === item.id);
-      if (prod) setProductStockLocal(prod, branch, getProductStock(prod, branch) - (item.qty || 1));
+  const recorded = data.sale;
+  if (Array.isArray(data.products) && data.products.length) {
+    data.products.forEach(upd => {
+      const i = products.findIndex(p => p.id === upd.id);
+      if (i >= 0) products[i] = { ...products[i], ...upd };
     });
-    saveLocalData(currentTenant.id, curData);
-    products = curData.products || products;
-    sales = curData.sales;
-    if (!offline) toast('Sale saved locally — API unreachable', 'warn');
-  } else {
-    const curData = getLocalData(currentTenant.id);
-    curData.sales = curData.sales || [];
-    if (!curData.sales.find(s => s.id === recorded.id)) curData.sales.unshift(recorded);
-    curData.products = products;
-    saveLocalData(currentTenant.id, curData);
-    sales = curData.sales;
   }
 
   if (btn) { btn.disabled = false; btn.textContent = 'Complete sale'; }
@@ -3283,8 +3206,7 @@ async function completeSale() {
   closeMobileCart();
   document.getElementById('custName').value = '';
   document.getElementById('custPhone').value = '';
-  if (!offline) await loadTenantData();
-  else refreshActiveView();
+  await loadTenantData();
 }
 
 function printInvoice() {
@@ -3507,21 +3429,7 @@ async function saveProduct() {
   }
 
   if (!data || !data.success) {
-    // Offline / unreachable — persist locally
-    const curData = getLocalData(currentTenant.id);
-    curData.products = curData.products || [];
-    if (editProductId) {
-      const i = curData.products.findIndex(x => x.id === editProductId);
-      if (i < 0) { toast('Product not found locally', 'err'); return; }
-      curData.products[i] = { ...curData.products[i], ...payload };
-    } else {
-      curData.products.push({ id: 'prod_' + Date.now(), ...payload });
-    }
-    saveLocalData(currentTenant.id, curData);
-    products = curData.products;
-    closeModal('productModal');
-    toast(editProductId ? 'Product updated locally' : 'Product added locally', isOfflineToken() || (isStaticHost() && !getApiBase()) ? 'warn' : 'ok');
-    refreshActiveView();
+    toast('Could not save product to database', 'err');
     return;
   }
 
@@ -3532,14 +3440,13 @@ async function saveProduct() {
 
 async function deleteProduct(id) {
   if (!confirm('Are you sure you want to delete this product?')) return;
-  const curData = getLocalData(currentTenant.id);
-  curData.products = curData.products.filter(p => p.id !== id);
-  saveLocalData(currentTenant.id, curData);
+  const data = await apiFetch(`/api/tenant/${currentTenant.id}/products/${id}`, { method: 'DELETE' });
+  if (!(data && data.success)) {
+    toast((data && data.error) || 'Could not delete product', 'err');
+    return;
+  }
   toast('Product removed', 'ok');
   await loadTenantData();
-  try {
-    await apiFetch(`/api/tenant/${currentTenant.id}/products/${id}`, { method: 'DELETE' });
-  } catch (err) {}
 }
 
 // ═══════════════ 4. STOCK ENTRY ═══════════════
@@ -3625,7 +3532,6 @@ async function saveStockEntry() {
 
   let saved = 0;
   let failed = 0;
-  const offline = isOfflineToken() || (isStaticHost() && !getApiBase());
 
   for (const [pid, stock] of byProduct.entries()) {
     const p = products.find(x => x.id === pid);
@@ -3637,19 +3543,7 @@ async function saveStockEntry() {
       method: 'PUT', body: JSON.stringify({ stock })
     });
 
-    if (data && data.success === false) { failed++; continue; }
-
-    if (!data || !data.success) {
-      if (!offline && data !== null) { failed++; continue; }
-      const curData = getLocalData(currentTenant.id);
-      const prod = (curData.products || []).find(x => x.id === pid);
-      if (!prod) { failed++; continue; }
-      Object.entries(stock).forEach(([bid, qty]) => setProductStockLocal(prod, bid, qty));
-      saveLocalData(currentTenant.id, curData);
-      products = curData.products;
-      saved++;
-      continue;
-    }
+    if (!(data && data.success)) { failed++; continue; }
 
     for (const b of branches) {
       const prev = getProductStock(p, b.id);
@@ -3663,13 +3557,12 @@ async function saveStockEntry() {
     saved++;
   }
 
-  if (failed && !saved) toast('Could not save stock', 'err');
+  if (failed && !saved) toast('Could not save stock to database', 'err');
   else if (failed) toast(`Saved ${saved}, ${failed} failed`, 'warn');
-  else if (saved) toast(offline ? `Saved ${saved} stock update(s) locally` : `Saved ${saved} stock update(s)`, offline ? 'warn' : 'ok');
+  else if (saved) toast(`Saved ${saved} stock update(s)`, 'ok');
   else toast('No changes', 'ok');
 
-  if (!offline) await loadTenantData();
-  else refreshActiveView();
+  await loadTenantData();
 }
 
 function renderTransferTab() {
@@ -3755,31 +3648,13 @@ async function confirmTransfer() {
 
   if (data && data.success) {
     toast('Transfer complete', 'ok');
-  } else if (data && data.success === false) {
-    toast(data.error || 'Transfer failed', 'err');
+    document.getElementById('tfQty').value = '';
+    document.getElementById('tfNote').value = '';
+    await loadTenantData();
+    renderTransferTab();
     return;
-  } else {
-    // Offline local transfer
-    const curData = getLocalData(currentTenant.id);
-    const prod = (curData.products || []).find(x => x.id === pid);
-    if (!prod || getProductStock(prod, from) < qty) { toast('Insufficient stock', 'err'); return; }
-    setProductStockLocal(prod, from, getProductStock(prod, from) - qty);
-    setProductStockLocal(prod, to, getProductStock(prod, to) + qty);
-    curData.transfers = curData.transfers || [];
-    curData.transfers.unshift({
-      id: 'tf_' + Date.now(), productId: pid, productName: prod.name,
-      fromBranch: from, toBranch: to, qty, note, ts: new Date().toISOString()
-    });
-    saveLocalData(currentTenant.id, curData);
-    products = curData.products;
-    transfers = curData.transfers;
-    toast('Transfer saved locally', 'warn');
   }
-
-  document.getElementById('tfQty').value = '';
-  document.getElementById('tfNote').value = '';
-  if (data && data.success) await loadTenantData();
-  renderTransferTab();
+  toast((data && data.error) || 'Could not save transfer to database', 'err');
 }
 
 // ═══════════════ 6. INVOICES & HISTORY ═══════════════
@@ -4075,14 +3950,14 @@ async function saveTenantBranding() {
     updates.logoUrl = currentUploadedLogoBase64;
   }
 
-  // 1. Immediately update and save locally (pins hashed on server; keep names/branches local)
+  // Optimistic UI update; persist only via API
   const localUpdates = { ...updates };
   delete localUpdates.pinPlaintext;
   for (const b of branches) {
     if (/^b[1-9]\d*$/.test(b.id)) localUpdates[b.id + 'name'] = b.name;
   }
+  const prevTenant = currentTenant;
   currentTenant = { ...currentTenant, ...localUpdates };
-  saveLocalTenant(currentTenant);
   applyTenantTheme(currentTenant);
   document.getElementById('hdrTenantName').textContent = currentTenant.name;
   document.getElementById('hdrTenantType').textContent = currentTenant.businessType || '';
@@ -4091,13 +3966,17 @@ async function saveTenantBranding() {
     method: 'PUT',
     body: JSON.stringify(updates)
   });
-  if (data && data.success === false) {
-    toast(data.error || 'Could not sync branding to server', 'err');
-  } else if (!data) {
-    toast('Brand saved locally (API unreachable)', 'warn');
-  } else {
+  if (data && data.success) {
     toast('Brand settings saved', 'ok');
     if (data.tenant) currentTenant = { ...currentTenant, ...data.tenant };
+  } else {
+    currentTenant = prevTenant;
+    applyTenantTheme(currentTenant);
+    document.getElementById('hdrTenantName').textContent = currentTenant.name;
+    document.getElementById('hdrTenantType').textContent = currentTenant.businessType || '';
+    setHdrBrandLogo(currentTenant);
+    toast((data && data.error) || 'Could not save settings to database', 'err');
+    return;
   }
   await loadTenants({ skipRouting: true, requireAuth: true });
 }
@@ -4215,6 +4094,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if (storedBase && sanitizeStoredApiBase(storedBase) === '') {
     localStorage.removeItem('omni_api_base');
   }
+  ensureCloudOnlyStore();
   const superTok = getSuperToken();
   if (superTok) setAuthToken(superTok);
   loadTenants();
