@@ -654,37 +654,14 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (req, res) => {
         JSON.stringify(newTenant.branches), JSON.stringify(newTenant.pins), newTenant.isOnboarded,
         newTenant.maxBranches
       ]);
-
-      for (let i = 0; i < DEFAULT_SEED_ITEMS.length; i++) {
-        const p = DEFAULT_SEED_ITEMS[i];
-        const seedId = 'prod_' + uuidv4().slice(0, 8);
-        const stock = {};
-        for (const b of newTenant.branches) {
-          stock[b.id] = p[b.id + 'Stock'] != null ? p[b.id + 'Stock'] : (p.b1Stock || 10);
-        }
-        const item = normalizeProduct({
-          id: seedId, name: p.name, cat: p.cat, price: p.price, cost: p.cost || 0,
-          stock, reorder: p.reorder || 5, unit: p.unit || 'pcs'
-        }, newTenant.branches);
-        await persistProductToPg(newTenant.id, item, newTenant.branches);
-      }
+      // New stores start empty — products/sales/stock are per-tenant
     } catch (e) {
       console.error('Error inserting tenant into PG:', e);
     }
   }
 
   localDb.tenants.push(newTenant);
-  localDb.products[newTenant.id] = DEFAULT_SEED_ITEMS.map((item, idx) => {
-    const stock = {};
-    for (const b of newTenant.branches) {
-      stock[b.id] = item[b.id + 'Stock'] != null ? item[b.id + 'Stock'] : (item.b1Stock || 10);
-    }
-    return normalizeProduct({
-      id: `prod_${newTenant.id.slice(0, 6)}_${idx + 1}`,
-      name: item.name, cat: item.cat, price: item.price, cost: item.cost || 0,
-      stock, reorder: item.reorder || 5, unit: item.unit || 'pcs'
-    }, newTenant.branches);
-  });
+  localDb.products[newTenant.id] = [];
   localDb.sales[newTenant.id] = [];
   localDb.stockLogs[newTenant.id] = [];
   localDb.transfers[newTenant.id] = [];

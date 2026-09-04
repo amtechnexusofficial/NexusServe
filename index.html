@@ -1070,8 +1070,8 @@ input:focus, select:focus, textarea:focus {
         <h1 class="portal-title" id="activeTenantName">Customer Shop</h1>
         <p class="portal-subtitle" id="activeTenantTagline">Point of Sale</p>
       </div>
-      <div>
-        <p style="font-size:.78rem;font-weight:650;color:var(--text-muted);margin:10px 0 0">Choose role</p>
+      <div id="roleSelectActions">
+        <p id="chooseRoleLabel" style="font-size:.78rem;font-weight:650;color:var(--text-muted);margin:10px 0 0">Choose role</p>
         <div class="role-row" id="roleRow"></div>
       </div>
       <div class="portal-footer" id="roleSelectFooter">
@@ -2132,6 +2132,8 @@ function showShopNotFound(target) {
   document.getElementById('activeTenantLogoBox').innerHTML = '';
   const row = document.getElementById('roleRow');
   if (row) row.innerHTML = '';
+  const actions = document.getElementById('roleSelectActions');
+  if (actions) actions.style.display = 'none';
 }
 
 function showShopSuspended() {
@@ -2150,6 +2152,8 @@ function showShopSuspended() {
   document.getElementById('activeTenantLogoBox').innerHTML = '';
   const row = document.getElementById('roleRow');
   if (row) row.innerHTML = '';
+  const actions = document.getElementById('roleSelectActions');
+  if (actions) actions.style.display = 'none';
 }
 
 function showSuperAdminLogin() {
@@ -2292,14 +2296,7 @@ function saveLocalTenant(t) {
   else cur.push(t);
   try { localStorage.setItem('omni_tenants', JSON.stringify(cur)); } catch (e) {}
   
-  const pKey = 'omni_prods_' + t.id;
-  if (!localStorage.getItem(pKey)) {
-    const seed = DEFAULT_SEED_ITEMS.map((item, idx) => ({
-      id: 'prod_' + t.id.slice(0, 4) + '_' + (idx + 1),
-      ...item
-    }));
-    try { localStorage.setItem(pKey, JSON.stringify(seed)); } catch(e) {}
-  }
+  // Do not seed products — each store starts with empty catalog/inventory
 }
 
 function getLocalData(tenantId) {
@@ -2308,14 +2305,6 @@ function getLocalData(tenantId) {
   try { s = JSON.parse(localStorage.getItem('omni_sales_' + tenantId) || '[]'); } catch(e) {}
   try { st = JSON.parse(localStorage.getItem('omni_stocklogs_' + tenantId) || '[]'); } catch(e) {}
   try { tr = JSON.parse(localStorage.getItem('omni_transfers_' + tenantId) || '[]'); } catch(e) {}
-
-  if (p.length === 0) {
-    p = DEFAULT_SEED_ITEMS.map((item, idx) => ({
-      id: 'prod_' + tenantId.slice(0, 4) + '_' + (idx + 1),
-      ...item
-    }));
-    try { localStorage.setItem('omni_prods_' + tenantId, JSON.stringify(p)); } catch(e) {}
-  }
   return { products: p, sales: s, stockLogs: st, transfers: tr };
 }
 
@@ -2651,6 +2640,9 @@ function chooseTenant(tenantId, isDirect = false) {
 
   renderRoleButtons();
 
+  const actions = document.getElementById('roleSelectActions');
+  if (actions) actions.style.display = '';
+
   document.getElementById('roleSelectView').style.display = 'block';
   document.getElementById('pinEntryView').style.display = 'none';
 }
@@ -2767,8 +2759,10 @@ async function submitCreateTenant() {
       chooseTenant(data.tenant.id);
       return;
     }
-    toast((data && data.error) || 'Could not create shop in database', 'err');
+    console.warn('Create shop failed:', data);
+    toast((data && data.error) || (data === null ? 'API unreachable — check backend URL' : 'Could not create shop in database'), 'err');
   } catch (err) {
+    console.warn('Create shop error:', err);
     toast('Could not create shop in database', 'err');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Create Isolated Shop'; }

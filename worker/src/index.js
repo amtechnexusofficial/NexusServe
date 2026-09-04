@@ -151,6 +151,8 @@ async function ensureSchema(sql) {
     'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS branches JSONB',
     'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_branches INTEGER DEFAULT 3',
     'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT false',
+    // Live DBs may still have password VARCHAR(100); PBKDF2 hashes are ~111 chars
+    'ALTER TABLE tenants ALTER COLUMN password TYPE VARCHAR(255)',
     'ALTER TABLE products ADD COLUMN IF NOT EXISTS stock JSONB',
     "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''"
   ];
@@ -273,7 +275,10 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
   if (!name) return c.json({ error: 'Tenant business name is required' }, 400);
 
   const cleanId = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').slice(0, 50) + '-' + Math.floor(1000 + Math.random() * 9000);
-  const code = username ? username.toLowerCase().replace(/[^a-z0-9_]/g, '') : name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8);
+  const baseCode = username
+    ? username.toLowerCase().replace(/[^a-z0-9_]/g, '')
+    : name.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 6);
+  const code = `${baseCode || 'shop'}${Math.floor(100 + Math.random() * 900)}`.slice(0, 24);
   const user = username ? username.trim().toLowerCase() : code;
   const pass = password ? password.trim() : 'pos' + Math.floor(1000 + Math.random() * 9000);
   const maxBranches = getMaxBranches({ maxBranches: maxBranchesIn != null ? maxBranchesIn : 3 });
@@ -297,28 +302,46 @@ app.post('/api/tenants', authRequired, requireSuperAdmin, async (c) => {
   const hashedPins = await hashPins(plainPins);
   const sql = getSql(c.env);
 
-  await query(sql, `
-    INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded, max_branches)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb,$18,$19)
-  `, [
-    cleanId, name.trim(), code, user, hashedPw,
-    businessType || 'Food & Retail', tagline || 'Quality Products & Efficient Service',
-    currency || '₹', themeColor || '#e4a11b', accentColor || '#111111', logoUrl || '',
-    Number(gstRate ?? 5),
-    branches[0]?.name || 'Branch 1', branches[1]?.name || 'Branch 2', branches[2]?.name || 'Branch 3',
-    JSON.stringify(branches), JSON.stringify(hashedPins), !!isOnboarded, maxBranches
-  ]);
-
-  for (let i = 0; i < DEFAULT_SEED_ITEMS.length; i++) {
-    const p = DEFAULT_SEED_ITEMS[i];
-    const seedId = `prod_${crypto.randomUUID().slice(0, 8)}`;
-    const stock = {};
-    for (const b of branches) stock[b.id] = p[b.id + 'Stock'] != null ? p[b.id + 'Stock'] : (p.b1Stock || 10);
-    const item = normalizeProduct({ id: seedId, ...p, stock }, branches);
-    await persistProduct(sql, cleanId, item, branches);
+  try {
+    await query(sql, `
+      INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded, max_branches, is_suspended)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb,$18,$19,false)
+    `, [
+      cleanId, name.trim(), code, user, hashedPw,
+      businessType || 'Food & Retail', tagline || 'Quality Products & Efficient Service',
+      currency || '₹', themeColor || '#e4a11b', accentColor || '#111111', logoUrl || '',
+      Number(gstRate ?? 5),
+      branches[0]?.name || 'Branch 1', branches[1]?.name || 'Branch 2', branches[2]?.name || 'Branch 3',
+      JSON.stringify(branches), JSON.stringify(hashedPins), !!isOnboarded, maxBranches
+    ]);
+    // New stores start empty — products, stock, and invoices are per-tenant (no shared inventory)
+  } catch (err) {
+    console.error('Create tenant failed:', err?.message || err);
+    // Retry without is_suspended if column missing on older DBs
+    const msg = String(err?.message || err || '');
+    if (msg.includes('is_suspended')) {
+      try {
+        await query(sql, 'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT false');
+        await query(sql, `
+          INSERT INTO tenants (id, name, code, username, password, business_type, tagline, currency, theme_color, accent_color, logo_url, gst_rate, b1name, b2name, b3name, branches, pins, is_onboarded, max_branches, is_suspended)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16::jsonb,$17::jsonb,$18,$19,false)
+        `, [
+          cleanId, name.trim(), code, user, hashedPw,
+          businessType || 'Food & Retail', tagline || 'Quality Products & Efficient Service',
+          currency || '₹', themeColor || '#e4a11b', accentColor || '#111111', logoUrl || '',
+          Number(gstRate ?? 5),
+          branches[0]?.name || 'Branch 1', branches[1]?.name || 'Branch 2', branches[2]?.name || 'Branch 3',
+          JSON.stringify(branches), JSON.stringify(hashedPins), !!isOnboarded, maxBranches
+        ]);
+      } catch (err2) {
+        return c.json({ error: err2?.message || 'Database insert failed' }, 500);
+      }
+    } else {
+      return c.json({ error: msg || 'Database insert failed' }, 500);
+    }
   }
 
-  const newTenant = { id: cleanId, name: name.trim(), code, username: user, businessType: businessType || 'Food & Retail', branches, maxBranches };
+  const newTenant = { id: cleanId, name: name.trim(), code, username: user, businessType: businessType || 'Food & Retail', branches, maxBranches, suspended: false };
   return c.json({
     success: true,
     tenant: safePub(newTenant),
