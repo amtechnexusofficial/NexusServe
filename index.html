@@ -2375,11 +2375,26 @@ async function loadTenants(opts = {}) {
   }
 
   showTenantSelect();
-  tenants = getLocalTenants().map(t => {
+  // Prefer last cloud snapshot for first paint; avoid inventing demo shops when cache is empty.
+  let cached = [];
+  try {
+    const raw = localStorage.getItem('omni_tenants');
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) cached = arr;
+    }
+  } catch (e) {}
+  tenants = cached.map(t => {
     const { password, pins, ...safe } = t;
     return safe;
   });
-  renderTenantList();
+  if (tenants.length) renderTenantList();
+  else {
+    const list = document.getElementById('tenantList');
+    if (list) {
+      list.innerHTML = `<div style="text-align:center;padding:24px;color:var(--text-muted)">Loading shops…</div>`;
+    }
+  }
 
   try {
     const data = await apiFetch('/api/tenants');
@@ -2390,19 +2405,30 @@ async function loadTenants(opts = {}) {
       return;
     }
     if (data && data.success && Array.isArray(data.tenants)) {
-      const mergedMap = new Map();
-      tenants.forEach(t => mergedMap.set(t.id, t));
-      data.tenants.forEach(t => {
+      // Cloud is source of truth — do not merge leftover browser-local/demo shops
+      tenants = data.tenants.map(t => {
         const { password, pins, ...safe } = t;
-        mergedMap.set(safe.id, { ...(mergedMap.get(safe.id) || {}), ...safe });
-        saveLocalTenant(safe);
+        return safe;
       });
-      tenants = Array.from(mergedMap.values());
       try { localStorage.setItem('omni_tenants', JSON.stringify(tenants)); } catch(e) {}
+      renderTenantList();
+    } else if (!tenants.length) {
+      // API unavailable and no cache: offline demo starters only
+      tenants = getLocalTenants().map(t => {
+        const { password, pins, ...safe } = t;
+        return safe;
+      });
       renderTenantList();
     }
   } catch (err) {
     console.warn('Using local tenant store:', err);
+    if (!tenants.length) {
+      tenants = getLocalTenants().map(t => {
+        const { password, pins, ...safe } = t;
+        return safe;
+      });
+      renderTenantList();
+    }
   }
 }
 
