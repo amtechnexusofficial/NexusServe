@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#171717"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <title>NexusServe POS</title>
 <meta name="description" content="Multi-tenant POS and inventory for branded client shops, branch stock, and isolated billing."/>
 <meta property="og:title" content="NexusServe POS"/>
@@ -39,13 +42,19 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 14px; }
+html { font-size: 14px; -webkit-text-size-adjust: 100%; }
 body {
   background: var(--bg);
   color: var(--text-main);
   font-family: var(--font);
   min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
+  touch-action: manipulation;
 }
 
 ::-webkit-scrollbar { width: 10px; height: 10px; }
@@ -256,7 +265,8 @@ body {
 
 .tbl-wrap {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
-  margin-bottom: 16px; overflow: hidden; box-shadow: var(--soft-shadow);
+  margin-bottom: 16px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  box-shadow: var(--soft-shadow);
 }
 .tbl-head {
   padding: 11px 14px; display: flex; align-items: center; gap: 10px;
@@ -264,7 +274,7 @@ body {
 }
 .tbl-title { font-family: var(--display); font-size: .95rem; font-weight: 700; flex: 1; }
 .tbl-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.tbl-wrap table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.tbl-wrap table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: .84rem; }
 .tbl-wrap th {
   background: var(--bg2); padding: 8px 12px; text-align: left; font-size: .74rem;
   font-weight: 650; color: var(--text-muted); border-bottom: 1px solid var(--border);
@@ -354,8 +364,53 @@ input:focus, select:focus, textarea:focus {
 }
 .cart-hdr {
   padding: 12px 14px; border-bottom: 1px solid #2a2a2a; background: var(--ink);
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
+.cart-hdr-actions { display: flex; align-items: center; gap: 6px; }
+.cart-sheet-close {
+  display: none; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.25);
+  color: #fff; border-radius: 50%; width: 34px; height: 34px; cursor: pointer; font-size: 1rem;
+}
+.mobile-cart-backdrop {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 280;
+}
+.mobile-cart-backdrop.show { display: block; }
+.mobile-cart-fab {
+  display: none; position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 270; align-items: center; gap: 10px; padding: 12px 16px;
+  background: var(--ink); color: #fff; border: none; border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(0,0,0,.28); font-family: var(--font); font-weight: 650;
+  cursor: pointer; min-height: 52px;
+}
+.mobile-cart-fab.visible { display: flex; }
+.mobile-cart-fab .fab-count {
+  background: var(--signal); color: var(--ink); min-width: 26px; height: 26px;
+  border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
+  font-size: .8rem; font-weight: 800;
+}
+.mobile-cart-fab .fab-label { flex: 1; text-align: left; font-size: .92rem; }
+.mobile-cart-fab .fab-total { font-variant-numeric: tabular-nums; font-size: 1rem; font-weight: 700; }
+.page-head {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 18px; flex-wrap: wrap; gap: 10px;
+}
+.dash-filters {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 16px;
+}
+.dash-filters .filter-field {
+  display: flex; align-items: center; gap: 8px; flex: 1 1 140px; min-width: 0;
+}
+.dash-filters input[type="date"] { min-width: 0; flex: 1; }
+.billing-toolbar {
+  display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.billing-toolbar input, .billing-toolbar select { flex: 1; min-width: 140px; }
+.cat-filters {
+  display: flex; gap: 8px; overflow-x: auto; margin-bottom: 14px;
+  padding-bottom: 4px; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.cat-filters::-webkit-scrollbar { display: none; }
+.cat-filters .btn { flex-shrink: 0; }
 .cart-hdr-title { font-family: var(--display); font-size: 1rem; font-weight: 700; color: #fff; }
 .cart-items { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
 .cart-empty { text-align: center; padding: 28px 12px; color: var(--text-dim); font-size: .86rem; }
@@ -406,29 +461,133 @@ input:focus, select:focus, textarea:focus {
   padding: 11px 14px; font-size: .84rem; font-weight: 650;
   display: flex; align-items: center; gap: 8px; pointer-events: all;
   box-shadow: var(--soft-shadow); border-left: 4px solid var(--signal);
+  max-width: min(360px, calc(100vw - 28px));
 }
 .toast.err { border-left-color: var(--red); color: var(--red); }
 .toast.ok { border-left-color: var(--green); color: var(--green); }
 
+/* ── Responsive ── */
 @media (max-width: 960px) {
   .app-body { flex-direction: column; }
   #navBar {
-    width: 100%; height: auto; position: sticky; top: 52px; flex-direction: row;
-    overflow-x: auto; border-right: 0; padding: 8px 10px; gap: 4px;
-    background: rgba(244,243,239,.92); backdrop-filter: blur(8px);
+    width: 100%; height: auto; position: sticky; top: 52px; z-index: 190;
+    flex-direction: row; overflow-x: auto; border-right: 0;
+    padding: 8px 10px; gap: 4px;
+    background: rgba(244,243,239,.94); backdrop-filter: blur(10px);
+    -webkit-overflow-scrolling: touch; scrollbar-width: none;
   }
-  .nav-tab { white-space: nowrap; }
+  #navBar::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    white-space: nowrap; flex-shrink: 0;
+    padding: 10px 14px; min-height: 40px;
+  }
   .stat-grid { grid-template-columns: 1fr 1fr; }
-  #billingWrap { grid-template-columns: 1fr; }
-  .cart-panel { position: static; max-height: none; }
+  #billingWrap {
+    grid-template-columns: 1fr;
+    padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  }
+  .cart-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+    max-height: min(88vh, 680px);
+    border-radius: 16px 16px 0 0;
+    transform: translateY(110%);
+    transition: transform .28s cubic-bezier(.2,.8,.2,1);
+    box-shadow: 0 -12px 40px rgba(0,0,0,.2);
+  }
+  .cart-panel.open { transform: translateY(0); }
+  .cart-sheet-close { display: inline-flex; align-items: center; justify-content: center; }
+  body.cart-open { overflow: hidden; }
+  .menu-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .qty-btn { width: 34px; height: 34px; font-size: 1.05rem; }
+  .pin-pad { max-width: 300px; gap: 10px; }
+  .pin-btn { padding: 18px 0; min-height: 54px; font-size: 1.3rem; }
 }
+
 @media (max-width: 600px) {
-  #mainContent { padding: 12px; }
-  .stat-grid { grid-template-columns: 1fr 1fr; }
-  .form-row { grid-template-columns: 1fr; }
-  #header { padding: 0 10px; gap: 6px; }
+  html { font-size: 15px; }
+  #mainContent {
+    padding: 12px 12px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+  #header {
+    height: auto; min-height: 52px; padding: 8px 10px;
+    padding-top: calc(8px + env(safe-area-inset-top, 0px));
+    gap: 6px; flex-wrap: wrap;
+  }
+  .hdr-logo-txt { font-size: .95rem; max-width: 42vw; overflow: hidden; }
+  .hdr-logo-txt span {
+    display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .hdr-clock, .hdr-db-badge, .hdr-tenant-switch { display: none; }
+  .hdr-branch-tag { font-size: .68rem; padding: 3px 8px; }
+  .hdr-logout { padding: 8px 10px; min-height: 36px; }
+  #navBar {
+    top: 52px;
+    padding: 8px;
+  }
+  .portal-topbar {
+    padding: 12px 14px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  }
+  .portal-card { margin: 18px auto 40px; padding: 0 12px; }
+  .portal-title { font-size: 1.45rem; }
+  .portal-url-bar { flex-wrap: wrap; }
+  .portal-url-bar code {
+    word-break: break-all; white-space: normal; font-size: .68rem;
+  }
+  .tenant-item {
+    flex-wrap: wrap; align-items: flex-start; padding: 12px;
+  }
+  .tenant-item > div:last-child {
+    width: 100%; justify-content: flex-start !important; margin-top: 4px;
+  }
+  .tenant-badge { white-space: nowrap; }
+  .stat-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { padding: 12px; }
+  .stat-num { font-size: 1.25rem; }
+  .form-row { grid-template-columns: 1fr; }
+  .page-title { font-size: 1.25rem; }
+  .page-head { margin-bottom: 14px; }
+  .dash-filters .filter-field { flex: 1 1 100%; }
+  .dash-filters #dashTimeLabel { margin-left: 0 !important; width: 100%; }
+  .billing-toolbar input, .billing-toolbar select {
+    flex: 1 1 100%; width: 100%; min-width: 0;
+  }
+  .menu-grid { grid-template-columns: repeat(2, 1fr); }
+  .menu-card { padding: 12px 10px; min-height: 96px; }
+  .mc-name { font-size: .84rem; }
+  .btn { min-height: 42px; padding: 10px 14px; }
+  .btn-sm { min-height: 36px; }
+  .modal-overlay {
+    align-items: flex-end; padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .modal, .modal-lg {
+    max-width: 100%; max-height: 92vh; border-radius: 16px 16px 0 0;
+    margin: 0;
+  }
+  .modal-footer {
+    flex-wrap: wrap;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  .modal-footer .btn { flex: 1; justify-content: center; min-width: 120px; }
+  #toastZone {
+    left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    align-items: stretch;
+  }
+  .toast { max-width: none; }
+  /* Avoid iOS zoom on focus */
+  input, select, textarea { font-size: 16px; }
+  .form-row[data-adm-branch], #admBranchesList .form-row {
+    grid-template-columns: 1fr !important;
+  }
+  #admBranchesList .form-row .btn { width: 100%; justify-content: center; }
 }
+
+@media (max-width: 380px) {
+  .stat-grid { grid-template-columns: 1fr; }
+  .menu-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+}
+
 @media print {
   body * { visibility: hidden !important; }
   #invoiceModal, #invoiceModal * { visibility: visible !important; }
@@ -439,8 +598,8 @@ input:focus, select:focus, textarea:focus {
   #invoiceModal .modal { box-shadow: none !important; border: none !important; max-width: 100% !important; margin: 0 !important; }
   #invoiceModalFoot, #invoiceModal .modal-close, #invoiceModal .modal-hdr { display: none !important; }
   #invoiceModalBody { padding: 12px !important; }
-}
-</style>
+  .mobile-cart-fab, .mobile-cart-backdrop { display: none !important; }
+}</style>
 </head>
 <body>
 
@@ -597,7 +756,7 @@ input:focus, select:focus, textarea:focus {
     
     <!-- ─── DASHBOARD ─── -->
     <div id="tab-dashboard" class="tab-content">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div class="page-head">
         <div>
           <h2 class="page-title">Dashboard</h2>
           <p class="page-sub" id="dashSubTitle">Workspace performance</p>
@@ -605,14 +764,14 @@ input:focus, select:focus, textarea:focus {
         <button class="btn btn-primary btn-sm" onclick="switchTab('billing')">New sale</button>
       </div>
 
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 16px">
-        <div style="display:flex;align-items:center;gap:8px">
+      <div class="dash-filters">
+        <div class="filter-field">
           <label style="font-size:.82rem;font-weight:750;color:var(--text-muted)">From</label>
-          <input type="date" id="dashFromDate" style="font-family:var(--mono);font-size:.82rem"/>
+          <input type="date" id="dashFromDate"/>
         </div>
-        <div style="display:flex;align-items:center;gap:8px">
+        <div class="filter-field">
           <label style="font-size:.82rem;font-weight:750;color:var(--text-muted)">To</label>
-          <input type="date" id="dashToDate" style="font-family:var(--mono);font-size:.82rem"/>
+          <input type="date" id="dashToDate"/>
         </div>
         <button class="btn btn-outline btn-sm" onclick="applyDashDateFilter()">Apply</button>
         <button class="btn btn-outline btn-sm" onclick="resetDashDateFilter()">Reset</button>
@@ -664,12 +823,12 @@ input:focus, select:focus, textarea:focus {
     <div id="tab-billing" class="tab-content" style="display:none">
       <div id="billingWrap">
         <div>
-          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
-            <input type="text" id="menuSearch" placeholder="Search items…" oninput="renderMenuGrid()" style="flex:1;min-width:200px"/>
-            <select id="billingBranchSelect" onchange="changeBillingBranch(this.value)" style="width:200px"></select>
+          <div class="billing-toolbar">
+            <input type="text" id="menuSearch" placeholder="Search items…" oninput="renderMenuGrid()"/>
+            <select id="billingBranchSelect" onchange="changeBillingBranch(this.value)"></select>
           </div>
 
-          <div style="display:flex;gap:8px;overflow-x:auto;margin-bottom:16px;padding-bottom:4px" id="catFilters">
+          <div class="cat-filters" id="catFilters">
             <!-- category pills -->
           </div>
 
@@ -678,11 +837,14 @@ input:focus, select:focus, textarea:focus {
           </div>
         </div>
 
-        <!-- POS Cart Sidebar -->
-        <div class="cart-panel">
+        <!-- POS Cart Sidebar / mobile sheet -->
+        <div class="cart-panel" id="cartPanel">
           <div class="cart-hdr">
             <div class="cart-hdr-title">Order</div>
-            <button class="btn btn-sm btn-outline" style="color:#fff;border-color:rgba(255,255,255,.3);padding:4px 8px" onclick="clearCart()">Clear</button>
+            <div class="cart-hdr-actions">
+              <button class="btn btn-sm btn-outline" style="color:#fff;border-color:rgba(255,255,255,.3);padding:4px 8px" onclick="clearCart()">Clear</button>
+              <button type="button" class="cart-sheet-close" onclick="closeMobileCart()" aria-label="Close cart">✕</button>
+            </div>
           </div>
           <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
             <input type="text" id="custName" placeholder="Customer name (optional)"/>
@@ -695,7 +857,7 @@ input:focus, select:focus, textarea:focus {
             </select>
           </div>
           <div class="cart-items" id="cartItems">
-            <div class="cart-empty">Click items to add to order</div>
+            <div class="cart-empty">Tap items to add to order</div>
           </div>
           <div class="cart-footer">
             <div class="cart-row"><span>Subtotal</span><span id="cartSub">0.00</span></div>
@@ -1161,6 +1323,12 @@ input:focus, select:focus, textarea:focus {
 </div>
 
 <div id="toastZone"></div>
+<div id="mobileCartBackdrop" class="mobile-cart-backdrop" onclick="closeMobileCart()"></div>
+<button type="button" id="mobileCartFab" class="mobile-cart-fab" onclick="openMobileCart()" aria-label="Open cart">
+  <span class="fab-count" id="mobileCartFabCount">0</span>
+  <span class="fab-label">View order</span>
+  <strong class="fab-total" id="mobileCartFabTotal">0.00</strong>
+</button>
 
 <script>
 // ═══════════════ APPLICATION STATE ═══════════════
@@ -2238,6 +2406,8 @@ async function loginSuccess(role) {
 function logout() {
   currentRole = null;
   cart = [];
+  closeMobileCart();
+  syncMobileCartUi();
   document.getElementById('appScreen').classList.remove('show');
   document.getElementById('portalScreen').style.display = 'flex';
 
@@ -2327,9 +2497,14 @@ function switchTab(tab) {
   if (el) el.style.display = 'block';
   
   const nav = document.querySelector(`.nav-tab[data-tab="${tab}"]`);
-  if (nav) nav.classList.add('active');
+  if (nav) {
+    nav.classList.add('active');
+    try { nav.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (_) {}
+  }
 
+  if (tab !== 'billing') closeMobileCart();
   refreshActiveView();
+  syncMobileCartUi();
 }
 
 function refreshActiveView() {
@@ -2527,23 +2702,56 @@ function changeQty(idx, d) {
 
 function clearCart() { cart = []; renderCart(); }
 
+function isMobilePosLayout() {
+  return window.matchMedia('(max-width: 960px)').matches;
+}
+
+function openMobileCart() {
+  if (!isMobilePosLayout()) return;
+  document.getElementById('cartPanel')?.classList.add('open');
+  document.getElementById('mobileCartBackdrop')?.classList.add('show');
+  document.body.classList.add('cart-open');
+}
+
+function closeMobileCart() {
+  document.getElementById('cartPanel')?.classList.remove('open');
+  document.getElementById('mobileCartBackdrop')?.classList.remove('show');
+  document.body.classList.remove('cart-open');
+}
+
+function syncMobileCartUi() {
+  const fab = document.getElementById('mobileCartFab');
+  if (!fab) return;
+  const appOpen = document.getElementById('appScreen')?.classList.contains('show');
+  const onBilling = activeTab === 'billing' && appOpen;
+  const showFab = onBilling && isMobilePosLayout();
+  fab.classList.toggle('visible', showFab);
+  const count = cart.reduce((a, c) => a + (Number(c.qty) || 0), 0);
+  const countEl = document.getElementById('mobileCartFabCount');
+  const totalEl = document.getElementById('mobileCartFabTotal');
+  if (countEl) countEl.textContent = String(count);
+  if (totalEl) totalEl.textContent = document.getElementById('cartTotal')?.textContent || '0.00';
+  fab.style.opacity = count > 0 ? '1' : '0.88';
+}
+
 function renderCart() {
   const wrap = document.getElementById('cartItems');
+  if (!wrap) return;
   if (cart.length === 0) {
-    wrap.innerHTML = '<div class="cart-empty">Click items on left to add</div>';
+    wrap.innerHTML = '<div class="cart-empty">Tap items to add to order</div>';
   } else {
     wrap.innerHTML = cart.map((c, i) => `
       <div class="cart-item">
-        <div style="flex:1">
+        <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.88rem">${c.name}</div>
           <div style="font-size:.78rem;color:var(--text-muted)">${fmtMoney(c.price)} each</div>
         </div>
         <div class="qty-ctrl">
-          <button class="qty-btn" onclick="changeQty(${i},-1)">−</button>
+          <button class="qty-btn" onclick="changeQty(${i},-1)" aria-label="Decrease">−</button>
           <span style="font-weight:700;min-width:20px;text-align:center">${c.qty}</span>
-          <button class="qty-btn" onclick="changeQty(${i},1)">+</button>
+          <button class="qty-btn" onclick="changeQty(${i},1)" aria-label="Increase">+</button>
         </div>
-        <div style="font-weight:800;font-size:.9rem">${fmtMoney(c.price * c.qty)}</div>
+        <div style="font-weight:800;font-size:.9rem;white-space:nowrap">${fmtMoney(c.price * c.qty)}</div>
       </div>`).join('');
   }
 
@@ -2552,10 +2760,15 @@ function renderCart() {
   const tax = sub * (gstRate / 100);
   const total = sub + tax;
 
-  document.getElementById('cartSub').textContent = fmtMoney(sub);
-  document.getElementById('cartTaxLbl').textContent = `Tax / GST (${gstRate}%)`;
-  document.getElementById('cartTax').textContent = fmtMoney(tax);
-  document.getElementById('cartTotal').textContent = fmtMoney(total);
+  const cartSub = document.getElementById('cartSub');
+  const cartTaxLbl = document.getElementById('cartTaxLbl');
+  const cartTax = document.getElementById('cartTax');
+  const cartTotal = document.getElementById('cartTotal');
+  if (cartSub) cartSub.textContent = fmtMoney(sub);
+  if (cartTaxLbl) cartTaxLbl.textContent = `Tax / GST (${gstRate}%)`;
+  if (cartTax) cartTax.textContent = fmtMoney(tax);
+  if (cartTotal) cartTotal.textContent = fmtMoney(total);
+  syncMobileCartUi();
 }
 
 async function completeSale() {
@@ -2651,6 +2864,7 @@ async function completeSale() {
   toast(`Sale ${recorded.billNo} complete`, 'ok');
   showInvoiceModal(recorded);
   clearCart();
+  closeMobileCart();
   document.getElementById('custName').value = '';
   document.getElementById('custPhone').value = '';
   if (!offline) await loadTenantData();
@@ -3419,6 +3633,12 @@ window.addEventListener('DOMContentLoaded', () => {
   const superTok = getSuperToken();
   if (superTok) setAuthToken(superTok);
   loadTenants();
+  syncMobileCartUi();
+});
+
+window.addEventListener('resize', () => {
+  if (!isMobilePosLayout()) closeMobileCart();
+  syncMobileCartUi();
 });
 </script>
 </body>
