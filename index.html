@@ -442,11 +442,6 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
   padding: 24px; box-shadow: var(--soft-shadow); margin-bottom: 0;
 }
-.settings-link-row {
-  display: flex; justify-content: space-between; align-items: center;
-  flex-wrap: wrap; gap: 12px;
-}
-.settings-link-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .adm-branch-card {
   display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;
   padding: 12px; margin-bottom: 0;
@@ -842,9 +837,6 @@ input:focus, select:focus, textarea:focus {
     width: 100%;
     justify-content: center;
   }
-  .settings-link-row { flex-direction: column; align-items: stretch; }
-  .settings-link-actions { width: 100%; }
-  .settings-link-actions .btn { flex: 1; justify-content: center; min-height: 42px; }
   .adm-branch-card {
     grid-template-columns: 1fr;
     align-items: stretch;
@@ -1120,9 +1112,6 @@ input:focus, select:focus, textarea:focus {
       </div>
     </div>
 
-    <button class="hdr-tenant-switch" id="btnHdrCustomerLink" onclick="copyActiveTenantCustomerLink()" title="Copy direct login URL to share with client">
-      Customer link
-    </button>
     <button class="hdr-tenant-switch" id="btnHdrSwitchClient" onclick="promptSwitchTenant()">
       Switch client
     </button>
@@ -1445,33 +1434,6 @@ input:focus, select:focus, textarea:focus {
           <p class="page-sub">Logo, colors, currency, branches, and PINs</p>
         </div>
         <button class="btn btn-primary settings-save-desktop" onclick="saveTenantBranding()">Save settings</button>
-      </div>
-
-      <!-- Customer Direct Access URL Card -->
-      <div class="tbl-wrap" style="padding:16px;margin-bottom:14px">
-        <div class="settings-link-row">
-          <div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
-              <h3 class="section-title" style="margin:0">Customer login URL</h3>
-              <span class="tenant-badge">Isolated</span>
-            </div>
-            <p class="page-sub" style="margin:0">
-              Share with the client or cashiers — opens this shop only.
-            </p>
-          </div>
-          <div class="settings-link-actions">
-            <button class="btn btn-outline btn-sm" onclick="copyActiveTenantCustomerLink()">
-              Copy link
-            </button>
-            <button class="btn btn-primary btn-sm" onclick="openActiveTenantCustomerLink()">
-              Open
-            </button>
-          </div>
-        </div>
-        <div class="portal-url-bar" style="margin-top:12px">
-          <span style="font-size:.72rem;color:var(--text-muted);font-weight:650;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase;flex-shrink:0">Store</span>
-          <code id="activeCustomerUrlCode" style="font-family:var(--mono);font-size:.78rem;font-weight:600;color:var(--theme-primary);word-break:break-all"></code>
-        </div>
       </div>
 
       <div class="settings-grid">
@@ -2098,7 +2060,6 @@ function applyShopLinkChrome() {
   hide('btnBackToMaster');
   hide('btnCopyShopLink');
   hide('btnPortalDbConfig');
-  hide('btnHdrCustomerLink');
   hide('btnHdrSwitchClient');
 
   const footer = document.getElementById('roleSelectFooter');
@@ -2359,11 +2320,6 @@ function copyCustomerLink(tenantId) {
 function copyActiveTenantCustomerLink() {
   if (!currentTenant) return;
   copyCustomerLink(currentTenant.id);
-}
-
-function openActiveTenantCustomerLink() {
-  if (!currentTenant) return;
-  window.open(getCustomerPortalUrl(currentTenant.id), '_blank');
 }
 
 // ═══════════════ TENANT WORKSPACE MANAGEMENT ═══════════════
@@ -4027,10 +3983,6 @@ function renderAdminSettings() {
   document.getElementById('adm-currency').value = currentTenant.currency || '₹';
   document.getElementById('adm-gstRate').value = currentTenant.gstRate ?? 5;
   renderAdminBranchesEditor();
-
-  const codeEl = document.getElementById('activeCustomerUrlCode');
-  if (codeEl) codeEl.textContent = getCustomerPortalUrl(currentTenant.id);
-
   renderLogoPreview();
 }
 
