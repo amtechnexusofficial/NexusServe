@@ -435,6 +435,68 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 .inventory-toolbar input {
   flex: 1; min-width: 0;
 }
+
+.stock-card-branches {
+  margin-top: 10px; display: flex; flex-direction: column; gap: 8px;
+  padding-top: 10px; border-top: 1px solid var(--border);
+}
+.stock-card-branch {
+  display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; align-items: center;
+}
+.stock-card-branch .label { font-size: .8rem; color: var(--text-muted); }
+.stock-card-branch .current {
+  font-size: .72rem; color: var(--text-dim); text-align: right;
+}
+.stock-card-branch input {
+  grid-column: 1 / -1; width: 100%; min-width: 0;
+}
+
+.transfer-layout {
+  display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; align-items: start;
+}
+.transfer-log-cards { display: none; flex-direction: column; gap: 10px; margin-top: 12px; }
+.transfer-log-mobile-head { display: none !important; }
+.transfer-log-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  padding: 12px 14px; box-shadow: var(--soft-shadow);
+}
+.transfer-log-card .tl-top {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+}
+.transfer-log-card .tl-item { font-weight: 700; color: var(--ink); }
+.transfer-log-card .tl-qty {
+  font-family: var(--num); font-weight: 800; color: var(--brand-orange);
+  font-variant-numeric: tabular-nums;
+}
+.transfer-log-card .tl-meta {
+  margin-top: 6px; font-size: .78rem; color: var(--text-muted); line-height: 1.4;
+}
+
+.invoice-cards { display: none; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.invoice-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px; box-shadow: var(--soft-shadow);
+}
+.invoice-card-top {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 10px;
+}
+.invoice-card-no {
+  font-family: var(--num); font-weight: 800; font-size: 1.02rem;
+  font-variant-numeric: tabular-nums; color: var(--ink);
+}
+.invoice-card-total {
+  font-family: var(--num); font-weight: 800; color: var(--brand-orange);
+  font-variant-numeric: tabular-nums; font-size: 1.05rem;
+}
+.invoice-card-meta {
+  margin-top: 8px; font-size: .8rem; color: var(--text-muted); line-height: 1.45;
+}
+.invoice-card-items {
+  margin-top: 8px; font-size: .82rem; color: var(--text-main);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.invoice-card-actions { margin-top: 12px; }
+.invoice-card-actions .btn { width: 100%; justify-content: center; }
 .tbl-wrap table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: .84rem; }
 .tbl-wrap th {
   background: var(--bg2); padding: 8px 12px; text-align: left; font-size: .74rem;
@@ -715,14 +777,33 @@ input:focus, select:focus, textarea:focus {
   #tab-inventory .tbl-wrap { display: none; }
   .product-cards { display: flex; }
   .inventory-toolbar { display: flex; }
-  #tab-inventory .page-head {
+  #tab-inventory .page-head,
+  #tab-stock .page-head,
+  #tab-history .page-head {
     flex-direction: column;
     align-items: stretch;
   }
-  #tab-inventory .page-head .btn-primary {
+  #tab-inventory .page-head .btn-primary,
+  #tab-stock .page-head .btn-primary,
+  #tab-history .page-head .btn {
     width: 100%;
     justify-content: center;
   }
+
+  /* Stock count cards */
+  #tab-stock .tbl-wrap { display: none; }
+  #stockCards { display: flex; }
+
+  /* Transfers — stack + log cards */
+  .transfer-layout { grid-template-columns: 1fr; gap: 14px; }
+  #tab-transfer .transfer-log-table { display: none; }
+  .transfer-log-cards { display: flex; }
+  .transfer-log-mobile-head { display: flex !important; }
+  #tab-transfer .btn-primary { width: 100%; justify-content: center; }
+
+  /* Invoices cards */
+  #tab-history .tbl-wrap { display: none; }
+  .invoice-cards { display: flex; }
 }
 
 @media (max-width: 600px) {
@@ -1147,13 +1228,19 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── STOCK ENTRY ─── -->
     <div id="tab-stock" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+      <div class="page-head">
         <div>
           <h2 class="page-title">Stock count</h2>
-          <p class="page-sub">Overwrite on-hand quantities for daily audits</p>
+          <p class="page-sub">Set on-hand quantities for each branch</p>
         </div>
         <button class="btn btn-primary" onclick="saveStockEntry()">Save adjustments</button>
       </div>
+
+      <div class="inventory-toolbar">
+        <input type="search" id="stockSearch" placeholder="Search products…" oninput="renderStockEntry()" autocomplete="off"/>
+      </div>
+
+      <div class="product-cards" id="stockCards"></div>
 
       <div class="tbl-wrap">
         <table>
@@ -1165,10 +1252,17 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── STOCK TRANSFER ─── -->
     <div id="tab-transfer" class="tab-content" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:20px;align-items:start">
-        <div class="tbl-wrap">
-          <div class="tbl-head"><div class="tbl-title">Transfer Between Branches</div></div>
-          <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
+      <div class="page-head">
+        <div>
+          <h2 class="page-title">Transfers</h2>
+          <p class="page-sub">Move stock between branches</p>
+        </div>
+      </div>
+
+      <div class="transfer-layout">
+        <div class="tbl-wrap transfer-form-card">
+          <div class="tbl-head"><div class="tbl-title">New transfer</div></div>
+          <div style="padding:16px;display:flex;flex-direction:column;gap:14px">
             <div class="form-group">
               <label>Select Product</label>
               <select id="tfItem" onchange="updateTransferPreview()"><option value="">Choose item...</option></select>
@@ -1196,25 +1290,37 @@ input:focus, select:focus, textarea:focus {
           </div>
         </div>
 
-        <div class="tbl-wrap">
-          <div class="tbl-head"><div class="tbl-title">Transfer Activity Log</div></div>
-          <table>
-            <thead><tr><th>Time</th><th>Item</th><th>Qty</th><th>From</th><th>To</th></tr></thead>
-            <tbody id="transferLogBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">No transfers recorded</td></tr></tbody>
-          </table>
+        <div>
+          <div class="tbl-wrap transfer-log-table">
+            <div class="tbl-head"><div class="tbl-title">Transfer activity</div></div>
+            <table>
+              <thead><tr><th>Time</th><th>Item</th><th>Qty</th><th>From</th><th>To</th></tr></thead>
+              <tbody id="transferLogBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">No transfers recorded</td></tr></tbody>
+            </table>
+          </div>
+          <div class="tbl-head transfer-log-mobile-head" style="background:transparent;border:none;padding:0 0 8px">
+            <div class="tbl-title" style="font-size:1rem">Recent transfers</div>
+          </div>
+          <div class="transfer-log-cards" id="transferLogCards"></div>
         </div>
       </div>
     </div>
 
     <!-- ─── SALES INVOICES HISTORY ─── -->
     <div id="tab-history" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+      <div class="page-head">
         <div>
           <h2 class="page-title">Invoices</h2>
           <p class="page-sub">Past orders for this workspace</p>
         </div>
         <button class="btn btn-green btn-sm" onclick="exportCSV()">Export CSV</button>
       </div>
+
+      <div class="inventory-toolbar">
+        <input type="search" id="historySearch" placeholder="Search invoice, customer…" oninput="renderHistory()" autocomplete="off"/>
+      </div>
+
+      <div class="invoice-cards" id="historyCards"></div>
 
       <div class="tbl-wrap">
         <table>
@@ -3361,27 +3467,79 @@ async function deleteProduct(id) {
 }
 
 // ═══════════════ 4. STOCK ENTRY ═══════════════
+function isCompactLayout() {
+  return window.matchMedia('(max-width: 960px)').matches;
+}
+
 function renderStockEntry() {
   const branches = getBranches();
+  const q = (document.getElementById('stockSearch')?.value || '').trim().toLowerCase();
+  const list = !q
+    ? products
+    : products.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.cat || '').toLowerCase().includes(q)
+      );
+
   const head = document.getElementById('stockEntryHead');
-  head.innerHTML = `<tr>
-    <th>Product</th><th>Category</th>
-    ${branches.map(b => `<th>${b.name} — Set To</th>`).join('')}
-    ${branches.map(b => `<th>Current ${b.name}</th>`).join('')}
-  </tr>`;
+  if (head) {
+    head.innerHTML = `<tr>
+      <th>Product</th><th>Category</th>
+      ${branches.map(b => `<th>${b.name} — Set To</th>`).join('')}
+      ${branches.map(b => `<th>Current ${b.name}</th>`).join('')}
+    </tr>`;
+  }
   const body = document.getElementById('stockEntryBody');
-  body.innerHTML = products.map(p => `
-    <tr>
-      <td style="font-weight:650">${p.name}</td>
-      <td>${p.cat || ''}</td>
-      ${branches.map(b => `<td><input type="number" data-se="${p.id}:${b.id}" value="${getProductStock(p, b.id)}" style="width:90px"/></td>`).join('')}
-      ${branches.map(b => `<td style="color:var(--text-muted)">${getProductStock(p, b.id)}</td>`).join('')}
-    </tr>`).join('') || `<tr><td colspan="${2 + branches.length * 2}" style="text-align:center;padding:24px">No products</td></tr>`;
+  const cards = document.getElementById('stockCards');
+
+  if (!list.length) {
+    const emptyMsg = products.length ? 'No products match your search' : 'No products';
+    if (body) {
+      body.innerHTML = `<tr><td colspan="${2 + branches.length * 2}" style="text-align:center;padding:24px">${emptyMsg}</td></tr>`;
+    }
+    if (cards) {
+      cards.innerHTML = `<div class="product-cards-empty">${emptyMsg}</div>`;
+    }
+    return;
+  }
+
+  if (body) {
+    body.innerHTML = list.map(p => `
+      <tr>
+        <td style="font-weight:650">${p.name}</td>
+        <td>${p.cat || ''}</td>
+        ${branches.map(b => `<td><input type="number" data-se="${p.id}:${b.id}" value="${getProductStock(p, b.id)}" style="width:90px"/></td>`).join('')}
+        ${branches.map(b => `<td style="color:var(--text-muted)">${getProductStock(p, b.id)}</td>`).join('')}
+      </tr>`).join('');
+  }
+
+  if (cards) {
+    cards.innerHTML = list.map(p => `
+      <article class="product-card">
+        <div class="product-card-top">
+          <div class="product-card-name">${p.name}</div>
+          <span class="badge badge-generic">${p.cat || 'General'}</span>
+        </div>
+        <div class="stock-card-branches">
+          ${branches.map(b => {
+            const cur = getProductStock(p, b.id);
+            return `
+              <div class="stock-card-branch">
+                <span class="label">${b.name}</span>
+                <span class="current">now ${cur}</span>
+                <input type="number" inputmode="numeric" data-se="${p.id}:${b.id}" value="${cur}" aria-label="${b.name} stock for ${p.name}"/>
+              </div>`;
+          }).join('')}
+        </div>
+      </article>`).join('');
+  }
 }
 
 async function saveStockEntry() {
   const branches = getBranches();
-  const inputs = [...document.querySelectorAll('#stockEntryBody [data-se]')];
+  const useCards = isCompactLayout();
+  const root = useCards ? '#stockCards' : '#stockEntryBody';
+  const inputs = [...document.querySelectorAll(`${root} [data-se]`)];
   const byProduct = new Map();
   for (const inp of inputs) {
     const [pid, bid] = inp.getAttribute('data-se').split(':');
@@ -3448,17 +3606,38 @@ function renderTransferTab() {
     `<option value="${p.id}" ${p.id === cur ? 'selected' : ''}>${p.name}</option>`
   ).join('');
   const body = document.getElementById('transferLogBody');
+  const cards = document.getElementById('transferLogCards');
   if (!transfers.length) {
-    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">No transfers recorded</td></tr>';
+    if (body) {
+      body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--text-muted)">No transfers recorded</td></tr>';
+    }
+    if (cards) {
+      cards.innerHTML = '<div class="product-cards-empty">No transfers recorded</div>';
+    }
   } else {
-    body.innerHTML = transfers.map(tr => `
-      <tr>
-        <td style="font-size:.8rem">${new Date(tr.ts).toLocaleString()}</td>
-        <td>${tr.productName || ''}</td>
-        <td>${tr.qty}</td>
-        <td>${branchName(tr.fromBranch)}</td>
-        <td>${branchName(tr.toBranch)}</td>
-      </tr>`).join('');
+    if (body) {
+      body.innerHTML = transfers.map(tr => `
+        <tr>
+          <td style="font-size:.8rem">${new Date(tr.ts).toLocaleString()}</td>
+          <td>${tr.productName || ''}</td>
+          <td>${tr.qty}</td>
+          <td>${branchName(tr.fromBranch)}</td>
+          <td>${branchName(tr.toBranch)}</td>
+        </tr>`).join('');
+    }
+    if (cards) {
+      cards.innerHTML = transfers.map(tr => `
+        <article class="transfer-log-card">
+          <div class="tl-top">
+            <div class="tl-item">${tr.productName || 'Item'}</div>
+            <div class="tl-qty">×${tr.qty}</div>
+          </div>
+          <div class="tl-meta">
+            ${branchName(tr.fromBranch)} → ${branchName(tr.toBranch)}<br/>
+            ${new Date(tr.ts).toLocaleString()}
+          </div>
+        </article>`).join('');
+    }
   }
   updateTransferPreview();
 }
@@ -3530,22 +3709,65 @@ async function confirmTransfer() {
 // ═══════════════ 6. INVOICES & HISTORY ═══════════════
 function renderHistory() {
   const body = document.getElementById('historyBody');
-  if (sales.length === 0) {
-    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px">No invoices recorded yet</td></tr>';
+  const cards = document.getElementById('historyCards');
+  const q = (document.getElementById('historySearch')?.value || '').trim().toLowerCase();
+  const list = !q
+    ? sales
+    : sales.filter(s => {
+        const hay = [
+          s.billNo, s.customerName, s.custName, branchName(s.branch),
+          ...(s.items || []).map(i => i.name)
+        ].join(' ').toLowerCase();
+        return hay.includes(q);
+      });
+
+  if (!list.length) {
+    const emptyMsg = sales.length ? 'No invoices match your search' : 'No invoices recorded yet';
+    if (body) {
+      body.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:24px">${emptyMsg}</td></tr>`;
+    }
+    if (cards) {
+      cards.innerHTML = `<div class="product-cards-empty">${emptyMsg}</div>`;
+    }
     return;
   }
-  body.innerHTML = sales.map(s => `
-    <tr>
-      <td style="font-family:var(--num);font-weight:650;font-variant-numeric:tabular-nums">${s.billNo || ''}</td>
-      <td style="font-size:.82rem">${new Date(s.ts).toLocaleString()}</td>
-      <td><span class="badge badge-generic">${branchName(s.branch)}</span></td>
-      <td>${s.customerName || s.custName || 'Walk-in'}</td>
-      <td style="font-size:.82rem">${(s.items || []).map(i => `${i.name} ×${i.qty}`).join(', ')}</td>
-      <td style="font-weight:800;color:var(--theme-primary)">${fmtMoney(s.total)}</td>
-      <td>
-        <button class="btn btn-sm btn-outline" onclick="viewSaleById('${String(s.id || '').replace(/'/g, '')}')">View</button>
-      </td>
-    </tr>`).join('');
+
+  if (body) {
+    body.innerHTML = list.map(s => `
+      <tr>
+        <td style="font-family:var(--num);font-weight:650;font-variant-numeric:tabular-nums">${s.billNo || ''}</td>
+        <td style="font-size:.82rem">${new Date(s.ts).toLocaleString()}</td>
+        <td><span class="badge badge-generic">${branchName(s.branch)}</span></td>
+        <td>${s.customerName || s.custName || 'Walk-in'}</td>
+        <td style="font-size:.82rem">${(s.items || []).map(i => `${i.name} ×${i.qty}`).join(', ')}</td>
+        <td style="font-weight:800;color:var(--theme-primary)">${fmtMoney(s.total)}</td>
+        <td>
+          <button class="btn btn-sm btn-outline" onclick="viewSaleById('${String(s.id || '').replace(/'/g, '')}')">View</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  if (cards) {
+    cards.innerHTML = list.map(s => {
+      const safeId = String(s.id || '').replace(/'/g, '');
+      const items = (s.items || []).map(i => `${i.name} ×${i.qty}`).join(', ');
+      return `
+        <article class="invoice-card">
+          <div class="invoice-card-top">
+            <div class="invoice-card-no">${s.billNo || 'Invoice'}</div>
+            <div class="invoice-card-total">${fmtMoney(s.total)}</div>
+          </div>
+          <div class="invoice-card-meta">
+            ${new Date(s.ts).toLocaleString()} · ${branchName(s.branch)}<br/>
+            ${s.customerName || s.custName || 'Walk-in'}
+          </div>
+          <div class="invoice-card-items">${items || 'No line items'}</div>
+          <div class="invoice-card-actions">
+            <button class="btn btn-sm btn-outline" onclick="viewSaleById('${safeId}')">View invoice</button>
+          </div>
+        </article>`;
+    }).join('');
+  }
 }
 
 function viewSaleById(id) {
