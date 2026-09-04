@@ -7,7 +7,7 @@
     "dev": "node server.js",
     "start": "node server.js",
     "lint": "node -e \"console.log('Lint check clean')\"",
-    "build": "node -e \"const fs=require('fs'); fs.mkdirSync('dist',{recursive:true}); for (const f of ['index.html','favicon.png','logo.jpg']) fs.copyFileSync(f,'dist/'+f);\""
+    "build": "node -e \"const fs=require('fs'); fs.mkdirSync('dist',{recursive:true}); for (const f of ['index.html','favicon.png','logo.jpg','logo.png','logo-mark.png']) fs.copyFileSync(f,'dist/'+f);\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
