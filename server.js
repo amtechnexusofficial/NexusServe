@@ -202,6 +202,7 @@ function mapPgTenantRow(r) {
     pins: typeof r.pins === 'string' ? JSON.parse(r.pins) : (r.pins || {}),
     isOnboarded: r.is_onboarded !== false,
     maxBranches: Number(r.max_branches ?? r.maxBranches ?? 3) || 3,
+    suspended: r.is_suspended === true || r.is_suspended === 1 || r.suspended === true,
     branches: r.branches
       ? (typeof r.branches === 'string' ? JSON.parse(r.branches) : r.branches)
       : undefined
@@ -353,6 +354,7 @@ async function initPgTables() {
       ALTER TABLE tenants ADD COLUMN IF NOT EXISTS branches JSONB;
       ALTER TABLE tenants ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT true;
       ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_branches INTEGER DEFAULT 3;
+      ALTER TABLE tenants ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT false;
 
       ALTER TABLE products ADD COLUMN IF NOT EXISTS stock JSONB;
 
@@ -522,6 +524,9 @@ app.post('/api/tenant/login', async (req, res) => {
 app.get('/api/tenants/:tenantId/public', async (req, res) => {
   const tenant = await loadTenantRecord(req.params.tenantId);
   if (!tenant) return res.status(404).json({ error: 'Shop not found' });
+  if (tenant.suspended) {
+    return res.status(403).json({ error: 'This shop is suspended. Contact your provider.', suspended: true });
+  }
   return res.json({ success: true, tenant: safePublicTenant(tenant) });
 });
 
@@ -535,6 +540,9 @@ app.post('/api/tenants/:tenantId/verify-pin', async (req, res) => {
 
   const tenant = await loadTenantRecord(req.params.tenantId);
   if (!tenant) return res.status(404).json({ error: 'Shop not found' });
+  if (tenant.suspended) {
+    return res.status(403).json({ error: 'This shop is suspended. Contact your provider.', suspended: true });
+  }
   ensureTenantBranches(tenant);
 
   if (!isValidStaffRole(tenant, staffRole)) {
@@ -816,6 +824,9 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
 // 5. Delete Tenant (Super-Admin only)
 app.delete('/api/tenants/:tenantId', authRequired, requireSuperAdmin, async (req, res) => {
   const { tenantId } = req.params;
+  const existing = localDb.tenants.find(t => t.id === tenantId) || await loadTenantRecord(tenantId);
+  if (!existing) return res.status(404).json({ error: 'Shop not found' });
+
   localDb.tenants = localDb.tenants.filter(t => t.id !== tenantId);
   delete localDb.products[tenantId];
   delete localDb.sales[tenantId];
@@ -828,9 +839,32 @@ app.delete('/api/tenants/:tenantId', authRequired, requireSuperAdmin, async (req
       await pool.query('DELETE FROM tenants WHERE id = $1', [tenantId]);
     } catch (e) {
       console.error('Error deleting tenant from PG:', e);
+      return res.status(500).json({ error: 'Could not delete shop from database' });
     }
   }
   return res.json({ success: true });
+});
+
+// 5b. Suspend / resume shop (Super-Admin only)
+app.post('/api/tenants/:tenantId/status', authRequired, requireSuperAdmin, async (req, res) => {
+  const { tenantId } = req.params;
+  const suspended = !!(req.body && req.body.suspended);
+  let tenant = localDb.tenants.find(t => t.id === tenantId);
+  if (tenant) {
+    tenant.suspended = suspended;
+    saveLocalData();
+  }
+  if (pool) {
+    try {
+      await pool.query('UPDATE tenants SET is_suspended = $1 WHERE id = $2', [suspended, tenantId]);
+      tenant = await loadTenantRecord(tenantId);
+    } catch (e) {
+      console.error('Error updating shop status:', e);
+      return res.status(500).json({ error: 'Could not update shop status' });
+    }
+  }
+  if (!tenant) return res.status(404).json({ error: 'Shop not found' });
+  return res.json({ success: true, tenant: safePublicTenant(tenant) });
 });
 
 // 6. Get Tenant Specific Isolated Data Bundle (Products, Sales, Logs, Transfers)
@@ -838,6 +872,9 @@ app.get('/api/tenant/:tenantId/data', authRequired, requireTenantAccess, async (
   const { tenantId } = req.params;
   let tenant = localDb.tenants.find(t => t.id === tenantId) || await loadTenantRecord(tenantId);
   if (!tenant) return res.status(404).json({ error: 'Client tenant not found' });
+  if (tenant.suspended && req.user?.role !== 'superadmin') {
+    return res.status(403).json({ error: 'This shop is suspended. Contact your provider.', suspended: true });
+  }
   ensureTenantBranches(tenant);
   const branches = tenant.branches;
 

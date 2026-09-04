@@ -11,5 +11,8 @@
     "@neondatabase/serverless": "^0.10.4",
     "hono": "^4.6.0",
     "jose": "^5.9.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.129.0"
   }
 }

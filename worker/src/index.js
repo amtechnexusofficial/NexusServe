@@ -39,6 +39,7 @@ function mapRow(r) {
     pins: j(r.pins) || {},
     isOnboarded: r.is_onboarded !== false && r.is_onboarded !== 0,
     maxBranches: Number(r.max_branches ?? r.maxBranches ?? 3) || 3,
+    suspended: r.is_suspended === true || r.is_suspended === 1 || r.suspended === true,
     branches: j(r.branches) || undefined,
     createdAt: r.created_at
   };
@@ -70,6 +71,18 @@ function safePub(tenant) {
 async function loadTenant(sql, tenantId) {
   const r = await queryOne(sql, 'SELECT * FROM tenants WHERE id = $1', [tenantId]);
   return mapRow(r);
+}
+
+/** Block staff/API use when shop is suspended (superadmin still allowed). */
+async function guardActiveTenant(c) {
+  const user = c.get('user');
+  if (user?.role === 'superadmin') return null;
+  const tenant = await loadTenant(getSql(c.env), c.req.param('tenantId'));
+  if (!tenant) return c.json({ error: 'Shop not found' }, 404);
+  if (tenant.suspended) {
+    return c.json({ error: 'This shop is suspended. Contact your provider.', suspended: true }, 403);
+  }
+  return null;
 }
 
 async function persistProduct(sql, tenantId, product, branches) {
@@ -137,6 +150,7 @@ async function ensureSchema(sql) {
     'CREATE INDEX IF NOT EXISTS idx_sales_tenant ON sales(tenant_id)',
     'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS branches JSONB',
     'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_branches INTEGER DEFAULT 3',
+    'ALTER TABLE tenants ADD COLUMN IF NOT EXISTS is_suspended BOOLEAN DEFAULT false',
     'ALTER TABLE products ADD COLUMN IF NOT EXISTS stock JSONB',
     "ALTER TABLE transfers ADD COLUMN IF NOT EXISTS note TEXT DEFAULT ''"
   ];
@@ -219,6 +233,9 @@ app.post('/api/tenant/login', async (c) => {
 app.get('/api/tenants/:tenantId/public', async (c) => {
   const tenant = await loadTenant(getSql(c.env), c.req.param('tenantId'));
   if (!tenant) return c.json({ error: 'Shop not found' }, 404);
+  if (tenant.suspended) {
+    return c.json({ error: 'This shop is suspended. Contact your provider.', suspended: true }, 403);
+  }
   return c.json({ success: true, tenant: safePub(tenant) });
 });
 
@@ -230,6 +247,9 @@ app.post('/api/tenants/:tenantId/verify-pin', async (c) => {
   const sql = getSql(c.env);
   const tenant = await loadTenant(sql, c.req.param('tenantId'));
   if (!tenant) return c.json({ error: 'Shop not found' }, 404);
+  if (tenant.suspended) {
+    return c.json({ error: 'This shop is suspended. Contact your provider.', suspended: true }, 403);
+  }
   if (!isValidStaffRole(tenant, staffRole)) return c.json({ error: 'Invalid role' }, 400);
   const pins = tenant.pins || {};
   const stored = pins[staffRole];
@@ -387,8 +407,22 @@ app.put('/api/tenants/:tenantId', authRequired, requireTenantAccess, requireTena
 app.delete('/api/tenants/:tenantId', authRequired, requireSuperAdmin, async (c) => {
   const tenantId = c.req.param('tenantId');
   const sql = getSql(c.env);
+  const existing = await loadTenant(sql, tenantId);
+  if (!existing) return c.json({ error: 'Shop not found' }, 404);
   await query(sql, 'DELETE FROM tenants WHERE id = $1', [tenantId]);
   return c.json({ success: true });
+});
+
+app.post('/api/tenants/:tenantId/status', authRequired, requireSuperAdmin, async (c) => {
+  const tenantId = c.req.param('tenantId');
+  const body = await c.req.json().catch(() => ({}));
+  const suspended = !!body.suspended;
+  const sql = getSql(c.env);
+  const existing = await loadTenant(sql, tenantId);
+  if (!existing) return c.json({ error: 'Shop not found' }, 404);
+  await query(sql, 'UPDATE tenants SET is_suspended = $1 WHERE id = $2', [suspended, tenantId]);
+  const tenant = await loadTenant(sql, tenantId);
+  return c.json({ success: true, tenant: safePub(tenant) });
 });
 
 app.get('/api/tenant/:tenantId/data', authRequired, requireTenantAccess, async (c) => {
@@ -396,6 +430,10 @@ app.get('/api/tenant/:tenantId/data', authRequired, requireTenantAccess, async (
   const sql = getSql(c.env);
   const tenant = await loadTenant(sql, tenantId);
   if (!tenant) return c.json({ error: 'Client tenant not found' }, 404);
+  const user = c.get('user');
+  if (tenant.suspended && user?.role !== 'superadmin') {
+    return c.json({ error: 'This shop is suspended. Contact your provider.', suspended: true }, 403);
+  }
   const branches = tenant.branches;
 
   const prodRows = await query(sql, 'SELECT * FROM products WHERE tenant_id = $1 ORDER BY name ASC', [tenantId]);
@@ -428,6 +466,8 @@ app.get('/api/tenant/:tenantId/data', authRequired, requireTenantAccess, async (
 });
 
 app.post('/api/tenant/:tenantId/products', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
+  const blocked = await guardActiveTenant(c);
+  if (blocked) return blocked;
   const tenantId = c.req.param('tenantId');
   const sql = getSql(c.env);
   const tenant = await loadTenant(sql, tenantId);
@@ -441,6 +481,8 @@ app.post('/api/tenant/:tenantId/products', authRequired, requireTenantAccess, re
 });
 
 app.put('/api/tenant/:tenantId/products/:id', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
+  const blocked = await guardActiveTenant(c);
+  if (blocked) return blocked;
   const tenantId = c.req.param('tenantId');
   const id = c.req.param('id');
   const sql = getSql(c.env);
@@ -461,11 +503,15 @@ app.put('/api/tenant/:tenantId/products/:id', authRequired, requireTenantAccess,
 });
 
 app.delete('/api/tenant/:tenantId/products/:id', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
+  const blocked = await guardActiveTenant(c);
+  if (blocked) return blocked;
   await query(getSql(c.env), 'DELETE FROM products WHERE tenant_id = $1 AND id = $2', [c.req.param('tenantId'), c.req.param('id')]);
   return c.json({ success: true });
 });
 
 app.post('/api/tenant/:tenantId/sales', authRequired, requireTenantAccess, async (c) => {
+  const blocked = await guardActiveTenant(c);
+  if (blocked) return blocked;
   const tenantId = c.req.param('tenantId');
   const sql = getSql(c.env);
   const sale = await c.req.json().catch(() => ({}));
@@ -521,6 +567,8 @@ app.post('/api/tenant/:tenantId/sales', authRequired, requireTenantAccess, async
 });
 
 app.post('/api/tenant/:tenantId/stock-log', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
+  const blocked = await guardActiveTenant(c);
+  if (blocked) return blocked;
   const tenantId = c.req.param('tenantId');
   const body = await c.req.json().catch(() => ({}));
   const log = { id: `log_${Date.now()}`, ...body, ts: new Date().toISOString() };
@@ -532,6 +580,8 @@ app.post('/api/tenant/:tenantId/stock-log', authRequired, requireTenantAccess, r
 });
 
 app.post('/api/tenant/:tenantId/transfers', authRequired, requireTenantAccess, requireTenantAdmin, async (c) => {
+  const blocked = await guardActiveTenant(c);
+  if (blocked) return blocked;
   const tenantId = c.req.param('tenantId');
   const sql = getSql(c.env);
   const body = await c.req.json().catch(() => ({}));

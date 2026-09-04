@@ -217,6 +217,19 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
   font-weight: 650; background: var(--signal-soft); color: var(--brand-orange);
   border: 1px solid rgba(243,112,33,.28);
 }
+.tenant-badge.suspended {
+  background: #f8e6e3; color: var(--red); border-color: rgba(192,57,43,.28);
+}
+.tenant-item.suspended {
+  opacity: .78;
+  border-style: dashed;
+}
+.tenant-actions .btn-danger {
+  background: #fff; color: var(--red); border-color: rgba(192,57,43,.35);
+}
+.tenant-actions .btn-danger:hover {
+  background: var(--red); color: #fff; border-color: var(--red);
+}
 .tenant-actions .btn-outline {
   background: #fff; color: var(--ink); border-color: var(--border2);
 }
@@ -2121,6 +2134,24 @@ function showShopNotFound(target) {
   if (row) row.innerHTML = '';
 }
 
+function showShopSuspended() {
+  isDirectCustomerView = true;
+  applyShopLinkChrome();
+  document.getElementById('portalScreen').style.display = 'flex';
+  document.getElementById('appScreen').classList.remove('show');
+  document.getElementById('superAdminLoginView').style.display = 'none';
+  document.getElementById('tenantSelectView').style.display = 'none';
+  document.getElementById('pinEntryView').style.display = 'none';
+  const role = document.getElementById('roleSelectView');
+  role.style.display = 'block';
+  document.getElementById('activeTenantName').textContent = 'Shop suspended';
+  document.getElementById('activeTenantTagline').textContent =
+    'This business is temporarily stopped. Contact your provider to restore access.';
+  document.getElementById('activeTenantLogoBox').innerHTML = '';
+  const row = document.getElementById('roleRow');
+  if (row) row.innerHTML = '';
+}
+
 function showSuperAdminLogin() {
   if (isShopLinkMode()) {
     if (currentTenant) chooseTenant(currentTenant.id, true);
@@ -2353,18 +2384,11 @@ async function loadTenants(opts = {}) {
         lockToShop(pub.tenant.id);
         const idx = tenants.findIndex(x => x.id === pub.tenant.id);
         if (idx >= 0) tenants[idx] = pub.tenant; else tenants.push(pub.tenant);
-        saveLocalTenant(pub.tenant);
         chooseTenant(pub.tenant.id, true);
         return;
       }
-      tenants = getLocalTenants();
-      if (handleInitialRouting()) return;
-      const localHit = tenants.find(t =>
-        t.id.toLowerCase() === target.toLowerCase() ||
-        (t.code && t.code.toLowerCase() === target.toLowerCase())
-      );
-      if (localHit) {
-        chooseTenant(localHit.id, true);
+      if (pub && (pub.suspended || pub.status === 403)) {
+        showShopSuspended();
         return;
       }
       showShopNotFound(target);
@@ -2470,29 +2494,82 @@ function renderTenantList() {
   list.innerHTML = tenants.map(t => {
     const maxB = getMaxBranches(t);
     const used = getBranches(t).length;
+    const stopped = !!t.suspended;
+    const safeId = String(t.id || '').replace(/'/g, "\\'");
     return `
-    <div class="tenant-item" onclick="chooseTenant('${t.id}')">
+    <div class="tenant-item ${stopped ? 'suspended' : ''}" onclick="chooseTenant('${safeId}')">
       <div class="tenant-avatar">
         ${t.logoUrl ? `<img src="${t.logoUrl}" alt="${t.name}"/>` : `<span>${(t.name || '?').charAt(0)}</span>`}
       </div>
       <div class="tenant-info">
         <div class="tenant-name">${t.name}</div>
-        <div class="tenant-desc">${t.businessType || 'Retail POS'} · ${used} of ${maxB} branches</div>
+        <div class="tenant-desc">${t.businessType || 'Retail POS'} · ${used} of ${maxB} branches${stopped ? ' · Suspended' : ''}</div>
       </div>
       <div class="tenant-actions">
-        <span class="tenant-badge">${used}/${maxB}</span>
-        <button class="btn btn-sm btn-outline" style="padding:6px 10px;font-size:.76rem" title="Set max branches" onclick="event.stopPropagation(); openEditMaxBranches('${t.id}')">
+        <span class="tenant-badge ${stopped ? 'suspended' : ''}">${stopped ? 'Stopped' : `${used}/${maxB}`}</span>
+        <button class="btn btn-sm btn-outline" style="padding:6px 10px;font-size:.76rem" title="${stopped ? 'Allow this shop to use the platform again' : 'Block this shop until payment is cleared'}" onclick="event.stopPropagation(); toggleTenantSuspended('${safeId}', ${stopped ? 'false' : 'true'})">
+          ${stopped ? 'Start' : 'Stop'}
+        </button>
+        <button class="btn btn-sm btn-outline" style="padding:6px 10px;font-size:.76rem" title="Set max branches" onclick="event.stopPropagation(); openEditMaxBranches('${safeId}')">
           Limit
         </button>
-        <button class="btn btn-sm btn-outline" style="padding:6px 10px;font-size:.76rem" title="Copy shop login link" onclick="event.stopPropagation(); copyCustomerLink('${t.id}')">
+        <button class="btn btn-sm btn-outline" style="padding:6px 10px;font-size:.76rem" title="Copy shop login link" onclick="event.stopPropagation(); copyCustomerLink('${safeId}')">
           Link
         </button>
-        <button class="btn btn-sm btn-primary" style="padding:6px 14px;font-size:.76rem" onclick="event.stopPropagation(); quickLaunchTenant('${t.id}')">
+        <button class="btn btn-sm btn-primary" style="padding:6px 14px;font-size:.76rem" ${stopped ? 'disabled title="Resume the shop before opening"' : ''} onclick="event.stopPropagation(); quickLaunchTenant('${safeId}')">
           Open
+        </button>
+        <button class="btn btn-sm btn-danger" style="padding:6px 10px;font-size:.76rem" title="Permanently delete this shop and all its data" onclick="event.stopPropagation(); deleteTenantPermanently('${safeId}')">
+          Delete
         </button>
       </div>
     </div>`;
   }).join('');
+}
+
+async function toggleTenantSuspended(tenantId, suspend) {
+  const t = tenants.find(x => x.id === tenantId);
+  if (!t) return;
+  const next = !!suspend;
+  const label = next ? 'stop' : 'start';
+  if (!confirm(next
+    ? `Stop "${t.name}"?\n\nStaff will not be able to sign in or use POS until you start it again.`
+    : `Start "${t.name}" again?\n\nStaff will regain access with their PINs.`)) {
+    return;
+  }
+  const data = await apiFetch(`/api/tenants/${encodeURIComponent(tenantId)}/status`, {
+    method: 'POST',
+    body: JSON.stringify({ suspended: next })
+  });
+  if (!(data && data.success)) {
+    toast((data && data.error) || `Could not ${label} shop`, 'err');
+    return;
+  }
+  const idx = tenants.findIndex(x => x.id === tenantId);
+  if (idx >= 0) {
+    tenants[idx] = { ...tenants[idx], ...(data.tenant || {}), suspended: next };
+  }
+  renderTenantList();
+  toast(next ? `"${t.name}" stopped` : `"${t.name}" started`, 'ok');
+}
+
+async function deleteTenantPermanently(tenantId) {
+  const t = tenants.find(x => x.id === tenantId);
+  if (!t) return;
+  const typed = prompt(`Permanently delete "${t.name}"?\n\nThis removes the shop and all products, sales, stock, and transfers from the database.\n\nType DELETE to confirm:`);
+  if (typed !== 'DELETE') {
+    if (typed != null) toast('Deletion cancelled', 'warn');
+    return;
+  }
+  const data = await apiFetch(`/api/tenants/${encodeURIComponent(tenantId)}`, { method: 'DELETE' });
+  if (!(data && data.success)) {
+    toast((data && data.error) || 'Could not delete shop', 'err');
+    return;
+  }
+  tenants = tenants.filter(x => x.id !== tenantId);
+  if (currentTenant && currentTenant.id === tenantId) currentTenant = null;
+  renderTenantList();
+  toast(`"${t.name}" deleted permanently`, 'ok');
 }
 
 function openEditMaxBranches(tenantId) {
@@ -2548,6 +2625,10 @@ function quickLaunchTenant(tenantId) {
 function chooseTenant(tenantId, isDirect = false) {
   const t = tenants.find(x => x.id === tenantId);
   if (!t) return;
+  if (t.suspended) {
+    toast('This shop is stopped. Use Start on the master shops list to restore access.', 'err');
+    return;
+  }
   currentTenant = t;
   applyTenantTheme(t);
 
