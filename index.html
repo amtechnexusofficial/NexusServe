@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<meta name="theme-color" content="#171717"/>
+<meta name="theme-color" content="#0b0b0b"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <title>NexusServe POS</title>
@@ -18,21 +18,28 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root {
-  --bg: #f4f3ef;
-  --bg2: #ebeae4;
+  /* NexusServe brand — black + orange-gold from logo */
+  --brand-black: #0b0b0b;
+  --brand-orange: #f15a22;
+  --brand-gold: #f5a623;
+  --bg: #f2f1ef;
+  --bg2: #e7e5e2;
   --panel: #ffffff;
-  --panel2: #f9f8f5;
-  --border: #dddcd5;
-  --border2: #c5c4bc;
-  --ink: #171717;
-  --theme-primary: #171717;
-  --theme-hover: #2e2e2e;
-  --theme-light: #f3e8c8;
-  --theme-accent: #171717;
-  --signal: #e4a11b;
-  --text-main: #1a1a1a;
-  --text-muted: #6a6963;
-  --text-dim: #97968f;
+  --panel2: #faf9f7;
+  --border: #ddd9d4;
+  --border2: #c4bfb8;
+  --ink: #0b0b0b;
+  --theme-primary: #0b0b0b;
+  --theme-hover: #222222;
+  --theme-light: #fff1e8;
+  --theme-accent: #0b0b0b;
+  --signal: #f15a22;
+  --signal-2: #f5a623;
+  --signal-soft: #fff3ec;
+  --signal-ring: rgba(241, 90, 34, 0.28);
+  --text-main: #161616;
+  --text-muted: #6b6863;
+  --text-dim: #98948e;
   --red: #c0392b;
   --green: #1f7a4d;
   --blue: #245a8c;
@@ -42,7 +49,7 @@
   --display: 'Figtree', 'Avenir Next', 'Segoe UI', sans-serif;
   --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --num: 'Figtree', 'Avenir Next', 'Segoe UI', sans-serif;
-  --soft-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 14px rgba(0,0,0,.04);
+  --soft-shadow: 0 1px 2px rgba(0,0,0,.04), 0 6px 18px rgba(11,11,11,.05);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -68,7 +75,10 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 /* Portal */
 #portalScreen {
   position: fixed; inset: 0; z-index: 9999;
-  background: var(--bg);
+  background:
+    radial-gradient(ellipse 90% 55% at 50% -8%, rgba(241,90,34,.14), transparent 58%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, rgba(245,166,35,.08), transparent 50%),
+    var(--bg);
   overflow: auto;
   display: flex; flex-direction: column;
 }
@@ -126,7 +136,7 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
   display: flex; align-items: center; gap: 12px; cursor: pointer;
   background: #fff; box-shadow: var(--soft-shadow); transition: border-color .12s, background .12s;
 }
-.tenant-item:hover { background: #fffaf0; border-color: #c9b88a; }
+.tenant-item:hover { background: var(--signal-soft); border-color: var(--signal-2); }
 .tenant-avatar {
   width: 38px; height: 38px; border-radius: 9px; background: var(--ink); color: #fff;
   display: flex; align-items: center; justify-content: center; font-size: .95rem; font-weight: 700;
@@ -154,10 +164,11 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
   border-radius: var(--radius); cursor: pointer; font-family: var(--font); color: var(--text-main);
   box-shadow: var(--soft-shadow);
 }
-.role-btn:hover { background: #fffaf0; border-color: #c9b88a; }
+.role-btn:hover { background: var(--signal-soft); border-color: var(--signal-2); }
 .role-btn .role-key {
   font-family: var(--display); font-size: .78rem; font-weight: 700;
-  background: var(--ink); color: #fff; min-width: 2.5rem; text-align: center;
+  background: linear-gradient(145deg, var(--brand-orange), var(--brand-gold));
+  color: #fff; min-width: 2.5rem; text-align: center;
   padding: 5px 0; border-radius: 6px;
 }
 .role-btn .role-title { font-weight: 650; font-size: .92rem; }
@@ -177,12 +188,12 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
   font-size: 1.2rem; font-weight: 650; font-family: var(--num); color: var(--ink); cursor: pointer;
   box-shadow: var(--soft-shadow); font-variant-numeric: tabular-nums;
 }
-.pin-btn:hover { background: var(--signal); border-color: #c9891a; }
-.pin-btn:active { background: #f0c95a; }
+.pin-btn:hover { background: var(--signal); border-color: var(--signal); color: #fff; }
+.pin-btn:active { background: var(--signal-2); border-color: var(--signal-2); color: #fff; }
 .pin-btn.danger { color: var(--red); font-size: .78rem; font-family: var(--font); font-weight: 700; }
 .role-badge-pill {
   display: inline-block; padding: 3px 10px; margin-bottom: 8px; border-radius: 999px;
-  background: var(--signal); color: var(--ink); border: none;
+  background: linear-gradient(135deg, var(--brand-orange), var(--brand-gold)); color: #fff; border: none;
   font-family: var(--display); font-weight: 700; font-size: .75rem;
 }
 
@@ -190,8 +201,9 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 #appScreen { display: none; min-height: 100vh; flex-direction: column; }
 #appScreen.show { display: flex; }
 #header {
-  background: var(--ink); height: 52px; display: flex; align-items: center;
+  background: var(--brand-black); height: 52px; display: flex; align-items: center;
   padding: 0 16px; gap: 10px; position: sticky; top: 0; z-index: 200;
+  border-bottom: 2px solid var(--brand-orange);
 }
 .hdr-brand-box { display: flex; align-items: center; gap: 9px; cursor: pointer; min-width: 0; }
 .hdr-logo-img { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: #fff; padding: 1px; }
@@ -209,7 +221,7 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 }
 .hdr-tenant-switch:hover { border-color: var(--signal); color: #fff; }
 .hdr-branch-tag {
-  background: var(--signal); color: var(--ink); border: none; border-radius: 999px;
+  background: linear-gradient(135deg, var(--brand-orange), var(--brand-gold)); color: #fff; border: none; border-radius: 999px;
   padding: 3px 10px; font-family: var(--display); font-size: .75rem; font-weight: 700;
 }
 .hdr-spacer { flex: 1; }
@@ -242,10 +254,10 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
   padding: 9px 12px; font-size: .84rem; font-weight: 600; color: var(--text-muted);
   cursor: pointer; border: none; border-radius: var(--radius-sm); margin: 0;
 }
-.nav-tab:hover { color: var(--ink); background: rgba(255,255,255,.7); }
+.nav-tab:hover { color: var(--ink); background: var(--signal-soft); }
 .nav-tab.active {
   color: var(--ink); background: #fff; font-weight: 700;
-  box-shadow: var(--soft-shadow);
+  box-shadow: inset 3px 0 0 var(--brand-orange), var(--soft-shadow);
 }
 .nav-tab.adm-only { display: none; }
 
@@ -268,7 +280,7 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 .stat-card {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
   padding: 14px 16px; box-shadow: var(--soft-shadow);
-  border-top: 3px solid var(--ink);
+  border-top: 3px solid var(--brand-orange);
 }
 .stat-card:last-child { border-right: 1px solid var(--border); }
 .stat-card.b-red { border-top-color: var(--red); }
@@ -300,7 +312,7 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 }
 .tbl-wrap td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; font-variant-numeric: tabular-nums; }
 .tbl-wrap tr:last-child td { border-bottom: none; }
-.tbl-wrap tr:hover td { background: #fffaf0; }
+.tbl-wrap tr:hover td { background: var(--signal-soft); }
 
 .badge {
   display: inline-block; padding: 2px 8px; border-radius: 999px; font-family: var(--mono);
@@ -312,7 +324,7 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 .badge-b1 { background: #e4eef7; color: var(--blue); }
 .badge-b2 { background: #fff3d6; color: #7a5a10; }
 .badge-b3 { background: #eeeef2; color: #4a4560; }
-.badge-admin { background: var(--theme-light); color: var(--ink); }
+.badge-admin { background: var(--theme-light); color: var(--brand-orange); }
 
 .btn {
   display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
@@ -320,13 +332,16 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
   border: 1px solid transparent; border-radius: var(--radius-sm);
   background: #fff; color: var(--ink); text-decoration: none; white-space: nowrap;
 }
-.btn:hover { background: #fffaf0; }
-.btn-primary { background: var(--ink); color: #fff; border-color: var(--ink); }
-.btn-primary:hover { background: #333; color: #fff; }
+.btn:hover { background: var(--signal-soft); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--brand-orange), #e04e14);
+  color: #fff; border-color: transparent;
+}
+.btn-primary:hover { background: linear-gradient(135deg, #d94e1a, var(--brand-orange)); color: #fff; filter: brightness(1.03); }
 .btn-dark { background: var(--ink); color: #fff; }
-.btn-dark:hover { background: #333; }
+.btn-dark:hover { background: #222; }
 .btn-outline { background: #fff; color: var(--ink); border-color: var(--border2); }
-.btn-outline:hover { border-color: #aaa; background: #fffaf0; }
+.btn-outline:hover { border-color: var(--signal); background: var(--signal-soft); }
 .btn-danger { background: #fff5f3; color: var(--red); border-color: transparent; }
 .btn-danger:hover { background: var(--red); color: #fff; }
 .btn-green { background: #eef8f2; color: var(--green); border-color: transparent; }
@@ -339,7 +354,7 @@ input, select, textarea {
   padding: 9px 11px; color: var(--text-main); width: 100%; outline: none;
 }
 input:focus, select:focus, textarea:focus {
-  border-color: #c9b88a; outline: 2px solid rgba(228,161,27,.35); outline-offset: 0;
+  border-color: var(--signal); outline: 2px solid var(--signal-ring); outline-offset: 0;
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
 .form-row.one { grid-template-columns: 1fr; }
@@ -353,7 +368,7 @@ input:focus, select:focus, textarea:focus {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: var(--bg2); cursor: pointer; text-align: center; min-height: 120px;
 }
-.branding-preview-card:hover { border-color: #c9b88a; border-style: solid; background: #fff; }
+.branding-preview-card:hover { border-color: var(--signal); border-style: solid; background: #fff; }
 .branding-logo-preview { max-width: 140px; max-height: 90px; object-fit: contain; margin-bottom: 8px; }
 
 #billingWrap { display: grid; grid-template-columns: 1fr 330px; gap: 14px; align-items: start; }
@@ -362,7 +377,7 @@ input:focus, select:focus, textarea:focus {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
   padding: 12px; cursor: pointer; box-shadow: var(--soft-shadow);
 }
-.menu-card:hover { border-color: #c9b88a; background: #fffaf0; }
+.menu-card:hover { border-color: var(--signal); background: var(--signal-soft); }
 .menu-card.oos { opacity: .35; pointer-events: none; }
 .mc-name { font-size: .86rem; font-weight: 650; margin: 6px 0 4px; line-height: 1.25; }
 .mc-price {
@@ -381,7 +396,8 @@ input:focus, select:focus, textarea:focus {
   display: flex; flex-direction: column; overflow: hidden;
 }
 .cart-hdr {
-  padding: 12px 14px; border-bottom: 1px solid #2a2a2a; background: var(--ink);
+  padding: 12px 14px; border-bottom: 1px solid #2a2a2a;
+  background: linear-gradient(90deg, var(--brand-black) 0%, #1a120e 100%);
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
 }
 .cart-hdr-actions { display: flex; align-items: center; gap: 6px; }
@@ -396,13 +412,14 @@ input:focus, select:focus, textarea:focus {
 .mobile-cart-fab {
   display: none; position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   z-index: 270; align-items: center; gap: 10px; padding: 12px 16px;
-  background: var(--ink); color: #fff; border: none; border-radius: 14px;
-  box-shadow: 0 8px 28px rgba(0,0,0,.28); font-family: var(--font); font-weight: 650;
+  background: linear-gradient(135deg, var(--brand-black), #1a120e); color: #fff; border: none; border-radius: 14px;
+  box-shadow: 0 8px 28px rgba(241,90,34,.28); font-family: var(--font); font-weight: 650;
   cursor: pointer; min-height: 52px;
+  border: 1px solid rgba(241,90,34,.45);
 }
 .mobile-cart-fab.visible { display: flex; }
 .mobile-cart-fab .fab-count {
-  background: var(--signal); color: var(--ink); min-width: 26px; height: 26px;
+  background: linear-gradient(135deg, var(--brand-orange), var(--brand-gold)); color: #fff; min-width: 26px; height: 26px;
   border-radius: 999px; display: inline-flex; align-items: center; justify-content: center;
   font-size: .8rem; font-weight: 800;
 }
@@ -442,13 +459,14 @@ input:focus, select:focus, textarea:focus {
   background: #fff; font-weight: 650; cursor: pointer; display: flex; align-items: center; justify-content: center;
   font-family: var(--num); font-variant-numeric: tabular-nums;
 }
-.qty-btn:hover { background: var(--signal); border-color: #c9891a; }
+.qty-btn:hover { background: var(--signal); border-color: var(--signal); color: #fff; }
 .cart-footer { border-top: 1px solid var(--border); padding: 12px; background: #fff; }
 .cart-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; font-size: .86rem; }
 .cart-row.total-row {
   font-family: var(--num); font-size: 1.2rem; font-weight: 650;
   letter-spacing: -.02em; font-variant-numeric: tabular-nums;
   padding-top: 8px; margin-top: 4px; border-top: 1px solid var(--border);
+  color: var(--brand-orange);
 }
 .cart-row span:last-child { font-variant-numeric: tabular-nums; }
 
@@ -469,7 +487,7 @@ input:focus, select:focus, textarea:focus {
   background: var(--bg2); border: none; color: var(--ink); border-radius: 50%;
   width: 30px; height: 30px; cursor: pointer; font-size: .9rem; font-family: var(--font);
 }
-.modal-close:hover { background: var(--signal); }
+.modal-close:hover { background: var(--signal); color: #fff; }
 .modal-body { padding: 16px; }
 .modal-footer { padding: 12px 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
 
@@ -1112,7 +1130,7 @@ input:focus, select:focus, textarea:focus {
               <label>Brand Primary Color</label>
               <div style="display:flex;gap:8px;align-items:center">
                 <input type="color" id="adm-themeColor" style="width:50px;height:42px;padding:2px;cursor:pointer" onchange="previewColors()"/>
-                <input type="text" id="adm-themeColorHex" placeholder="#e4a11b" oninput="document.getElementById('adm-themeColor').value=this.value; previewColors()"/>
+                <input type="text" id="adm-themeColorHex" placeholder="#f15a22" oninput="document.getElementById('adm-themeColor').value=this.value; previewColors()"/>
               </div>
             </div>
             <div class="form-group">
@@ -1176,7 +1194,7 @@ input:focus, select:focus, textarea:focus {
       <div class="form-row">
         <div class="form-group">
           <label>Primary Theme Color</label>
-          <input type="color" id="newTenantColor" value="#0284c7"/>
+          <input type="color" id="newTenantColor" value="#f15a22"/>
         </div>
         <div class="form-group">
           <label>Admin Security PIN</label>
@@ -1820,8 +1838,8 @@ const DEFAULT_TENANTS = [
     businessType: 'Bakery & Cake Shop',
     tagline: 'Freshly Baked Goodness & Artisan Cakes',
     currency: '₹',
-    themeColor: '#e4a11b',
-    accentColor: '#111111',
+    themeColor: '#f15a22',
+    accentColor: '#0b0b0b',
     logoUrl: '',
     gstRate: 5,
     b1name: 'Flagship Store',
@@ -1841,7 +1859,7 @@ const DEFAULT_TENANTS = [
     tagline: 'Artisanal Coffee & Gourmet Street Food',
     currency: '$',
     themeColor: '#245a8c',
-    accentColor: '#111111',
+    accentColor: '#0b0b0b',
     logoUrl: '',
     gstRate: 8,
     b1name: 'Main Cafe',
@@ -2230,7 +2248,7 @@ async function submitCreateTenant() {
   const name = nameInput.value.trim();
   const businessType = document.getElementById('newTenantType').value.trim() || 'Food & Retail';
   const currency = document.getElementById('newTenantCurrency').value.trim() || '₹';
-  const themeColor = document.getElementById('newTenantColor').value || '#0284c7';
+  const themeColor = document.getElementById('newTenantColor').value || '#f15a22';
   const adminPin = document.getElementById('newTenantPin').value.trim() || '1234';
   const maxRaw = parseInt(document.getElementById('newTenantMaxBranches')?.value, 10);
   const maxBranches = (!Number.isFinite(maxRaw) || maxRaw < 1) ? 3 : Math.min(50, maxRaw);
@@ -2268,7 +2286,7 @@ async function submitCreateTenant() {
     tagline: 'Quality Products & Efficient Service',
     currency,
     themeColor,
-    accentColor: '#0f172a',
+    accentColor: '#0b0b0b',
     logoUrl: '',
     gstRate: 5,
     maxBranches,
@@ -2471,14 +2489,14 @@ function promptSwitchTenant() {
 
 // ═══════════════ THEME APPLIER ═══════════════
 function applyTenantTheme(t) {
-  const primary = t.themeColor || '#e4a11b';
-  const accent = t.accentColor || '#111111';
+  const primary = t.themeColor || '#f15a22';
+  const accent = t.accentColor || '#0b0b0b';
   // Keep chrome/actions black; tenant color is the signal highlight only
-  document.documentElement.style.setProperty('--theme-primary', '#111111');
-  document.documentElement.style.setProperty('--theme-hover', '#2a2a2a');
-  document.documentElement.style.setProperty('--theme-accent', accent || '#111111');
+  document.documentElement.style.setProperty('--theme-primary', '#0b0b0b');
+  document.documentElement.style.setProperty('--theme-hover', '#222222');
+  document.documentElement.style.setProperty('--theme-accent', accent || '#0b0b0b');
   document.documentElement.style.setProperty('--signal', primary);
-  document.documentElement.style.setProperty('--theme-light', primary + '33');
+  document.documentElement.style.setProperty('--theme-light', primary + '22');
 }
 
 // ═══════════════ LOAD TENANT ISOLATED DATA ═══════════════
@@ -3437,10 +3455,10 @@ function renderAdminSettings() {
   document.getElementById('adm-tenantName').value = currentTenant.name || '';
   document.getElementById('adm-tenantType').value = currentTenant.businessType || '';
   document.getElementById('adm-tenantTagline').value = currentTenant.tagline || '';
-  document.getElementById('adm-themeColor').value = currentTenant.themeColor || '#e4a11b';
-  document.getElementById('adm-themeColorHex').value = currentTenant.themeColor || '#e4a11b';
-  document.getElementById('adm-accentColor').value = currentTenant.accentColor || '#111111';
-  document.getElementById('adm-accentColorHex').value = currentTenant.accentColor || '#111111';
+  document.getElementById('adm-themeColor').value = currentTenant.themeColor || '#f15a22';
+  document.getElementById('adm-themeColorHex').value = currentTenant.themeColor || '#f15a22';
+  document.getElementById('adm-accentColor').value = currentTenant.accentColor || '#0b0b0b';
+  document.getElementById('adm-accentColorHex').value = currentTenant.accentColor || '#0b0b0b';
   document.getElementById('adm-currency').value = currentTenant.currency || '₹';
   document.getElementById('adm-gstRate').value = currentTenant.gstRate ?? 5;
   renderAdminBranchesEditor();
