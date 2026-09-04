@@ -94,8 +94,34 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
   display: flex; align-items: center; gap: 10px; min-width: 0;
 }
 .portal-brand-logo {
-  height: 52px; width: auto; max-width: min(220px, 58vw);
-  object-fit: contain; display: block;
+  height: 40px; width: auto; max-width: 48px;
+  object-fit: contain; display: block; flex-shrink: 0;
+}
+.portal-brand-text {
+  display: flex; flex-direction: column; line-height: 1.05; min-width: 0;
+}
+.portal-brand-name {
+  font-family: var(--display); font-size: 1.15rem; font-weight: 800;
+  letter-spacing: -.02em; color: var(--ink);
+}
+.portal-brand-name .serve {
+  background: var(--brand-grad);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+}
+.portal-brand-tag {
+  font-size: .58rem; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--text-muted); margin-top: 2px;
+}
+.portal-tenant-logo {
+  display: block; max-height: 72px; max-width: min(220px, 70%);
+  width: auto; margin: 4px auto 10px; object-fit: contain;
+}
+.portal-tenant-avatar {
+  width: 72px; height: 72px; border-radius: 18px; margin: 4px auto 10px;
+  background: var(--brand-grad); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--display); font-size: 1.8rem; font-weight: 800;
 }
 .portal-topbar .btn {
   background: #fff; color: var(--ink); border: 1px solid var(--border2);
@@ -621,8 +647,11 @@ input:focus, select:focus, textarea:focus {
     padding: 10px 14px;
     padding-top: calc(10px + env(safe-area-inset-top, 0px));
   }
-  .portal-brand-logo { height: 40px; max-width: min(180px, 55vw); }
+  .portal-brand-logo { height: 34px; max-width: 40px; }
+  .portal-brand-name { font-size: 1rem; }
+  .portal-brand-tag { display: none; }
   .portal-hero-logo { width: min(240px, 78%); margin-bottom: 18px; }
+  .portal-tenant-logo { max-height: 64px; }
   .portal-card { margin: 18px auto 40px; padding: 0 12px; }
   .portal-title { font-size: 1.55rem; }
   .portal-url-bar { flex-wrap: wrap; }
@@ -702,7 +731,11 @@ input:focus, select:focus, textarea:focus {
 <div id="portalScreen">
   <div class="portal-topbar">
     <div class="portal-brand">
-      <img src="/logo.png" alt="NexusServe" class="portal-brand-logo"/>
+      <img src="/logo-mark.png" alt="" class="portal-brand-logo"/>
+      <div class="portal-brand-text">
+        <span class="portal-brand-name">Nexus<span class="serve">Serve</span></span>
+        <span class="portal-brand-tag">Food Cart POS</span>
+      </div>
     </div>
     <button class="btn btn-sm" id="btnPortalDbConfig" onclick="openDbConfigModal()">Database</button>
   </div>
@@ -2248,9 +2281,10 @@ function chooseTenant(tenantId, isDirect = false) {
   
   const logoBox = document.getElementById('activeTenantLogoBox');
   if (t.logoUrl) {
-    logoBox.innerHTML = `<img src="${t.logoUrl}" style="max-height:55px;object-fit:contain"/>`;
+    logoBox.innerHTML = `<img src="${t.logoUrl}" alt="${t.name}" class="portal-tenant-logo"/>`;
   } else {
-    logoBox.innerHTML = `<img src="${PRODUCT_LOCKUP_URL}" alt="NexusServe" style="max-height:88px;object-fit:contain"/>`;
+    const initial = (t.name || '?').trim().charAt(0).toUpperCase();
+    logoBox.innerHTML = `<div class="portal-tenant-avatar" aria-hidden="true">${initial}</div>`;
   }
 
   renderRoleButtons();
