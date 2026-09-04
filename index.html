@@ -1799,9 +1799,6 @@ function applyShopLinkChrome() {
   const footer = document.getElementById('roleSelectFooter');
   if (footer) footer.style.display = shop ? 'none' : 'flex';
 
-  const pill = document.getElementById('customerPortalPill');
-  if (pill) pill.style.display = shop ? 'block' : 'none';
-
   // Never show master login / shop picker on a shop link
   if (shop) {
     const sa = document.getElementById('superAdminLoginView');
