@@ -703,6 +703,13 @@ input:focus, select:focus, textarea:focus {
 }
 .toast.err { border-left-color: var(--red); color: var(--red); }
 .toast.ok { border-left-color: var(--green); color: var(--green); }
+.invoice-saved-banner {
+  display: none;
+  margin-top: 4px;
+  font-size: .78rem;
+  font-weight: 650;
+  color: var(--green);
+}
 
 /* ── Responsive ── */
 @media (max-width: 960px) {
@@ -883,10 +890,16 @@ input:focus, select:focus, textarea:focus {
   }
   .modal-footer .btn { flex: 1; justify-content: center; min-width: 120px; }
   #toastZone {
-    left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    left: 12px; right: 12px;
+    top: calc(12px + env(safe-area-inset-top, 0px));
+    bottom: auto;
     align-items: stretch;
   }
   .toast { max-width: none; }
+  #invoiceModalFoot {
+    position: sticky; bottom: 0; background: #fff; z-index: 2;
+    box-shadow: 0 -6px 16px rgba(35,40,44,.06);
+  }
   /* Avoid iOS zoom on focus */
   input, select, textarea { font-size: 16px; }
   .form-row[data-adm-branch], #admBranchesList .form-row {
@@ -1659,7 +1672,10 @@ input:focus, select:focus, textarea:focus {
 <div class="modal-overlay" id="invoiceModal" onclick="closeModalOut(event,'invoiceModal')">
   <div class="modal modal-lg">
     <div class="modal-hdr">
-      <div class="modal-title">Receipt &amp; Tax Invoice</div>
+      <div>
+        <div class="modal-title">Receipt &amp; Tax Invoice</div>
+        <div id="invoiceSavedBanner" class="invoice-saved-banner"></div>
+      </div>
       <button class="modal-close" onclick="closeModal('invoiceModal')">✕</button>
     </div>
     <div class="modal-body" id="invoiceModalBody"></div>
@@ -3211,8 +3227,7 @@ async function completeSale() {
   }
 
   if (btn) { btn.disabled = false; btn.textContent = 'Complete sale'; }
-  toast(`Sale ${recorded.billNo} complete`, 'ok');
-  showInvoiceModal(recorded);
+  showInvoiceModal(recorded, { justSaved: true });
   clearCart();
   closeMobileCart();
   document.getElementById('custName').value = '';
@@ -3225,8 +3240,18 @@ function printInvoice() {
   window.print();
 }
 
-function showInvoiceModal(sale) {
+function showInvoiceModal(sale, opts = {}) {
   const body = document.getElementById('invoiceModalBody');
+  const banner = document.getElementById('invoiceSavedBanner');
+  if (banner) {
+    if (opts.justSaved) {
+      banner.style.display = 'block';
+      banner.textContent = sale.billNo ? `Sale ${sale.billNo} saved` : 'Sale saved';
+    } else {
+      banner.style.display = 'none';
+      banner.textContent = '';
+    }
+  }
   const bName = branchName(sale.branch);
 
   body.innerHTML = `
