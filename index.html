@@ -13,7 +13,7 @@
 <meta name="description" content="Multi-tenant POS and inventory for branded client shops, branch stock, and isolated billing."/>
 <meta property="og:title" content="NexusServe POS"/>
 <meta property="og:description" content="Multi-tenant POS and inventory for branded client shops, branch stock, and isolated billing."/>
-<meta property="og:image" content="/favicon.png"/>
+<meta property="og:image" content="/logo.jpg"/>
 <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
@@ -74,17 +74,27 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 }
 .portal-topbar {
   display: flex; align-items: center; justify-content: space-between;
-  gap: 12px; padding: 16px 22px;
-  background: rgba(255,255,255,.85); backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--border);
+  gap: 12px; padding: 12px 22px;
+  background: #0a0a0a; border-bottom: 1px solid #222;
+}
+.portal-brand {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+}
+.portal-brand-logo {
+  height: 42px; width: auto; max-width: min(220px, 58vw);
+  object-fit: contain; display: block;
 }
 .portal-wordmark {
   font-family: var(--display); font-size: 1.4rem; font-weight: 700;
-  letter-spacing: -.01em;
+  letter-spacing: -.01em; color: #fff;
 }
 .portal-wordmark small {
   display: block; font-family: var(--font); font-size: .7rem; font-weight: 500;
-  color: var(--text-muted); margin-top: 1px;
+  color: #aaa; margin-top: 1px;
+}
+.portal-hero-logo {
+  display: block; width: min(200px, 70%); margin: 8px auto 18px;
+  object-fit: contain; border-radius: 12px;
 }
 .portal-card {
   width: 100%; max-width: 520px; margin: 32px auto 56px; padding: 0 16px;
@@ -185,6 +195,10 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 }
 .hdr-brand-box { display: flex; align-items: center; gap: 9px; cursor: pointer; min-width: 0; }
 .hdr-logo-img { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; background: #fff; padding: 1px; }
+.hdr-product-logo {
+  height: 34px; width: auto; max-width: 120px; object-fit: contain;
+  display: block; border-radius: 6px;
+}
 .hdr-logo-txt { font-family: var(--display); font-size: 1.1rem; font-weight: 700; color: #fff; line-height: 1.1; }
 .hdr-logo-txt small {
   display: block; font-family: var(--font); font-size: .62rem; font-weight: 500; color: #aaa;
@@ -529,9 +543,11 @@ input:focus, select:focus, textarea:focus {
     padding: 8px;
   }
   .portal-topbar {
-    padding: 12px 14px;
-    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    padding: 10px 14px;
+    padding-top: calc(10px + env(safe-area-inset-top, 0px));
   }
+  .portal-brand-logo { height: 36px; max-width: min(180px, 55vw); }
+  .portal-hero-logo { width: min(160px, 62%); margin-bottom: 14px; }
   .portal-card { margin: 18px auto 40px; padding: 0 12px; }
   .portal-title { font-size: 1.45rem; }
   .portal-url-bar { flex-wrap: wrap; }
@@ -610,14 +626,17 @@ input:focus, select:focus, textarea:focus {
 <!-- ═══════════════════════════════ MULTI-TENANT CLIENT SELECTOR & LOGIN ═══════════════════════════════ -->
 <div id="portalScreen">
   <div class="portal-topbar">
-    <div class="portal-wordmark">NexusServe<small>AMtechnexus billing</small></div>
-    <button class="btn btn-sm" id="btnPortalDbConfig" onclick="openDbConfigModal()">Database</button>
+    <div class="portal-brand">
+      <img src="/logo.jpg" alt="NexusServe" class="portal-brand-logo"/>
+    </div>
+    <button class="btn btn-sm" id="btnPortalDbConfig" onclick="openDbConfigModal()" style="background:#222;color:#eee;border-color:#444">Database</button>
   </div>
 
   <div class="portal-card" id="portalCard">
 
     <!-- Superadmin gate -->
     <div id="superAdminLoginView">
+      <img src="/logo.jpg" alt="NexusServe" class="portal-hero-logo"/>
       <div class="portal-header">
         <div class="portal-logo-pill">Master</div>
         <h1 class="portal-title">Sign in</h1>
@@ -1350,6 +1369,17 @@ let pinInput = '';
 let pinRole = '';
 let editProductId = null;
 let currentUploadedLogoBase64 = '';
+const PRODUCT_LOGO_URL = '/logo.jpg';
+
+function setHdrBrandLogo(tenant = currentTenant) {
+  const logoContainer = document.getElementById('hdrLogoContainer');
+  if (!logoContainer) return;
+  if (tenant?.logoUrl) {
+    logoContainer.innerHTML = `<img src="${tenant.logoUrl}" class="hdr-logo-img" alt="logo"/>`;
+  } else {
+    logoContainer.innerHTML = `<img src="${PRODUCT_LOGO_URL}" class="hdr-product-logo" alt="NexusServe"/>`;
+  }
+}
 
 // Clock
 setInterval(() => {
@@ -2146,7 +2176,7 @@ function chooseTenant(tenantId, isDirect = false) {
   if (t.logoUrl) {
     logoBox.innerHTML = `<img src="${t.logoUrl}" style="max-height:55px;object-fit:contain"/>`;
   } else {
-    logoBox.innerHTML = `<div style="font-family:var(--mono);font-size:1.4rem;font-weight:700;color:var(--theme-primary)">${(t.name || 'S').charAt(0)}</div>`;
+    logoBox.innerHTML = `<img src="/logo.jpg" alt="NexusServe" style="max-height:72px;object-fit:contain;border-radius:10px"/>`;
   }
 
   renderRoleButtons();
@@ -2384,13 +2414,7 @@ async function loginSuccess(role) {
   // Set up header branding
   document.getElementById('hdrTenantName').textContent = currentTenant.name;
   document.getElementById('hdrTenantType').textContent = currentTenant.businessType || 'POS & Inventory';
-  
-  const logoContainer = document.getElementById('hdrLogoContainer');
-  if (currentTenant.logoUrl) {
-    logoContainer.innerHTML = `<img src="${currentTenant.logoUrl}" class="hdr-logo-img" alt="logo"/>`;
-  } else {
-    logoContainer.innerHTML = `<span style="font-size:1.4rem">🏬</span>`;
-  }
+  setHdrBrandLogo(currentTenant);
 
   document.getElementById('hdrRole').textContent = role === 'admin' ? 'Admin' : branchName(role);
   document.getElementById('hdrBranch').textContent = role === 'admin' ? 'All Branches' : branchName(role);
@@ -3501,11 +3525,7 @@ async function saveTenantBranding() {
   applyTenantTheme(currentTenant);
   document.getElementById('hdrTenantName').textContent = currentTenant.name;
   document.getElementById('hdrTenantType').textContent = currentTenant.businessType || '';
-  
-  const logoContainer = document.getElementById('hdrLogoContainer');
-  if (currentTenant.logoUrl) {
-    logoContainer.innerHTML = `<img src="${currentTenant.logoUrl}" class="hdr-logo-img" alt="logo"/>`;
-  }
+  setHdrBrandLogo(currentTenant);
   const data = await apiFetch(`/api/tenants/${currentTenant.id}`, {
     method: 'PUT',
     body: JSON.stringify(updates)
