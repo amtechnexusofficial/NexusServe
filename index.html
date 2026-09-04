@@ -435,6 +435,25 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 .inventory-toolbar input {
   flex: 1; min-width: 0;
 }
+.settings-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+}
+.settings-panel {
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 24px; box-shadow: var(--soft-shadow); margin-bottom: 0;
+}
+.settings-link-row {
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 12px;
+}
+.settings-link-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.adm-branch-card {
+  display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: end;
+  padding: 12px; margin-bottom: 0;
+  background: var(--panel2); border: 1px solid var(--border); border-radius: 12px;
+}
+.adm-branch-card .form-group { margin-bottom: 0; }
+.settings-save-bar { display: none; }
 
 .stock-card-branches {
   margin-top: 10px; display: flex; flex-direction: column; gap: 8px;
@@ -811,6 +830,50 @@ input:focus, select:focus, textarea:focus {
   /* Invoices cards */
   #tab-history .tbl-wrap { display: none; }
   .invoice-cards { display: flex; }
+
+  /* Shop settings */
+  .settings-grid { grid-template-columns: 1fr; gap: 12px; }
+  .settings-panel { padding: 16px; }
+  #tab-admin .page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #tab-admin .page-head .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
+  .settings-link-row { flex-direction: column; align-items: stretch; }
+  .settings-link-actions { width: 100%; }
+  .settings-link-actions .btn { flex: 1; justify-content: center; min-height: 42px; }
+  .adm-branch-card {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .adm-branch-card .btn {
+    width: 100%;
+    justify-content: center;
+    margin-top: 2px;
+  }
+  #tab-admin #btnAddAdminBranch {
+    width: 100%;
+    justify-content: center;
+  }
+  #tab-admin {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  .settings-save-bar {
+    display: flex;
+    position: fixed;
+    left: 12px; right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    z-index: 260;
+    gap: 8px;
+  }
+  .settings-save-bar .btn {
+    flex: 1; justify-content: center; min-height: 48px;
+    box-shadow: 0 8px 24px rgba(35,40,44,.18);
+  }
+  #tab-admin .settings-save-desktop { display: none; }
 }
 
 @media (max-width: 600px) {
@@ -902,10 +965,12 @@ input:focus, select:focus, textarea:focus {
   }
   /* Avoid iOS zoom on focus */
   input, select, textarea { font-size: 16px; }
-  .form-row[data-adm-branch], #admBranchesList .form-row {
+  .form-row[data-adm-branch], #admBranchesList .form-row,
+  #admBranchesList .adm-branch-card {
     grid-template-columns: 1fr !important;
   }
-  #admBranchesList .form-row .btn { width: 100%; justify-content: center; }
+  #admBranchesList .form-row .btn,
+  #admBranchesList .adm-branch-card .btn { width: 100%; justify-content: center; }
 }
 
 @media (max-width: 380px) {
@@ -1374,19 +1439,19 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── BRANDING & SHOP CUSTOMIZER (CLIENT BRANDING & LOGO UPLOAD) ─── -->
     <div id="tab-admin" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+      <div class="page-head">
         <div>
           <h2 class="page-title">Shop settings</h2>
           <p class="page-sub">Logo, colors, currency, branches, and PINs</p>
         </div>
-        <button class="btn btn-primary" onclick="saveTenantBranding()">Save settings</button>
+        <button class="btn btn-primary settings-save-desktop" onclick="saveTenantBranding()">Save settings</button>
       </div>
 
       <!-- Customer Direct Access URL Card -->
-      <div class="tbl-wrap" style="padding:16px;margin-bottom:18px">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div class="tbl-wrap" style="padding:16px;margin-bottom:14px">
+        <div class="settings-link-row">
           <div>
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
               <h3 class="section-title" style="margin:0">Customer login URL</h3>
               <span class="tenant-badge">Isolated</span>
             </div>
@@ -1394,7 +1459,7 @@ input:focus, select:focus, textarea:focus {
               Share with the client or cashiers — opens this shop only.
             </p>
           </div>
-          <div style="display:flex;gap:8px">
+          <div class="settings-link-actions">
             <button class="btn btn-outline btn-sm" onclick="copyActiveTenantCustomerLink()">
               Copy link
             </button>
@@ -1409,9 +1474,9 @@ input:focus, select:focus, textarea:focus {
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="settings-grid">
         <!-- Logo & Identity Card -->
-        <div class="tbl-wrap" style="padding:24px">
+        <div class="settings-panel">
           <h3 class="section-title">Logo &amp; identity</h3>
           
           <div class="form-group" style="margin-bottom:16px">
@@ -1442,22 +1507,22 @@ input:focus, select:focus, textarea:focus {
         </div>
 
         <!-- Color Scheme & Theme -->
-        <div class="tbl-wrap" style="padding:24px">
+        <div class="settings-panel">
           <h3 class="section-title">Theme &amp; currency</h3>
 
           <div class="form-row">
             <div class="form-group">
               <label>Brand Primary Color</label>
               <div style="display:flex;gap:8px;align-items:center">
-                <input type="color" id="adm-themeColor" style="width:50px;height:42px;padding:2px;cursor:pointer" onchange="previewColors()"/>
-                <input type="text" id="adm-themeColorHex" placeholder="#f37021" oninput="document.getElementById('adm-themeColor').value=this.value; previewColors()"/>
+                <input type="color" id="adm-themeColor" style="width:50px;height:42px;padding:2px;cursor:pointer;flex-shrink:0" onchange="previewColors()"/>
+                <input type="text" id="adm-themeColorHex" placeholder="#f37021" style="min-width:0;flex:1" oninput="document.getElementById('adm-themeColor').value=this.value; previewColors()"/>
               </div>
             </div>
             <div class="form-group">
               <label>Header Dark Accent</label>
               <div style="display:flex;gap:8px;align-items:center">
-                <input type="color" id="adm-accentColor" style="width:50px;height:42px;padding:2px;cursor:pointer" onchange="previewColors()"/>
-                <input type="text" id="adm-accentColorHex" placeholder="#111111" oninput="document.getElementById('adm-accentColor').value=this.value; previewColors()"/>
+                <input type="color" id="adm-accentColor" style="width:50px;height:42px;padding:2px;cursor:pointer;flex-shrink:0" onchange="previewColors()"/>
+                <input type="text" id="adm-accentColorHex" placeholder="#111111" style="min-width:0;flex:1" oninput="document.getElementById('adm-accentColor').value=this.value; previewColors()"/>
               </div>
             </div>
           </div>
@@ -1477,9 +1542,13 @@ input:focus, select:focus, textarea:focus {
 
           <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Branches</h4>
           <p id="admBranchLimitHint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"></p>
-          <div id="admBranchesList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px"></div>
+          <div id="admBranchesList"></div>
           <button type="button" class="btn btn-outline btn-sm" id="btnAddAdminBranch" onclick="addAdminBranchRow()">Add branch</button>
         </div>
+      </div>
+
+      <div class="settings-save-bar">
+        <button class="btn btn-primary" onclick="saveTenantBranding()">Save settings</button>
       </div>
     </div>
 
@@ -3890,8 +3959,8 @@ function renderAdminBranchesEditor() {
   const wrap = document.getElementById('admBranchesList');
   if (!wrap || !currentTenant) return;
   const branches = getBranches(currentTenant);
-  wrap.innerHTML = branches.map((b, i) => `
-    <div class="form-row" data-adm-branch="${b.id}" style="align-items:end">
+  wrap.innerHTML = branches.map((b) => `
+    <div class="adm-branch-card" data-adm-branch="${b.id}">
       <div class="form-group">
         <label>Branch id</label>
         <input type="text" value="${b.id}" data-field="id"/>
@@ -3921,9 +3990,8 @@ function addAdminBranchRow() {
   const n = wrap.children.length + 1;
   const id = 'b' + n + '_' + Math.floor(Math.random() * 1000);
   const div = document.createElement('div');
-  div.className = 'form-row';
+  div.className = 'adm-branch-card';
   div.setAttribute('data-adm-branch', id);
-  div.style.alignItems = 'end';
   div.innerHTML = `
     <div class="form-group"><label>Branch id</label><input type="text" value="${id}" data-field="id"/></div>
     <div class="form-group"><label>Name</label><input type="text" value="Branch ${n}" data-field="name"/></div>
