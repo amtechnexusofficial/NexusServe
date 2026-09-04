@@ -387,6 +387,54 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 }
 .tbl-title { font-family: var(--display); font-size: .95rem; font-weight: 700; flex: 1; }
 .tbl-tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+
+.product-cards { display: none; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.product-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  padding: 14px; box-shadow: var(--soft-shadow);
+}
+.product-card-top {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+}
+.product-card-name {
+  font-family: var(--display); font-size: 1.02rem; font-weight: 700;
+  line-height: 1.25; color: var(--ink); letter-spacing: -.01em;
+}
+.product-card-meta {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px;
+}
+.product-card-price {
+  font-family: var(--num); font-size: 1.05rem; font-weight: 700;
+  color: var(--brand-orange); font-variant-numeric: tabular-nums;
+}
+.product-card-cost {
+  font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+.product-card-stocks {
+  margin-top: 10px; display: flex; flex-direction: column; gap: 5px;
+  padding-top: 10px; border-top: 1px solid var(--border);
+}
+.product-stock-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  font-size: .82rem;
+}
+.product-stock-row .label { color: var(--text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.product-stock-row .qty { font-weight: 700; font-variant-numeric: tabular-nums; }
+.product-stock-row .qty.low { color: var(--red); }
+.product-card-actions {
+  display: flex; gap: 8px; margin-top: 12px;
+}
+.product-card-actions .btn { flex: 1; justify-content: center; }
+.product-cards-empty {
+  text-align: center; padding: 36px 16px; color: var(--text-muted);
+  background: #fff; border: 1px dashed var(--border2); border-radius: 14px;
+}
+.inventory-toolbar {
+  display: none; gap: 8px; margin-bottom: 12px;
+}
+.inventory-toolbar input {
+  flex: 1; min-width: 0;
+}
 .tbl-wrap table { width: 100%; min-width: 520px; border-collapse: collapse; font-size: .84rem; }
 .tbl-wrap th {
   background: var(--bg2); padding: 8px 12px; text-align: left; font-size: .74rem;
@@ -662,6 +710,19 @@ input:focus, select:focus, textarea:focus {
   .qty-btn { width: 34px; height: 34px; font-size: 1.05rem; }
   .pin-pad { max-width: 300px; gap: 10px; }
   .pin-btn { padding: 18px 0; min-height: 54px; font-size: 1.3rem; }
+
+  /* Products — card list on phone/tablet */
+  #tab-inventory .tbl-wrap { display: none; }
+  .product-cards { display: flex; }
+  .inventory-toolbar { display: flex; }
+  #tab-inventory .page-head {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #tab-inventory .page-head .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 600px) {
@@ -1049,15 +1110,21 @@ input:focus, select:focus, textarea:focus {
 
     <!-- ─── INVENTORY & PRODUCTS ─── -->
     <div id="tab-inventory" class="tab-content" style="display:none">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;flex-wrap:wrap;gap:12px">
+      <div class="page-head">
         <div>
           <h2 class="page-title">Products</h2>
-          <p class="page-sub">Catalog, cost, sell price, and reorder alerts</p>
+          <p class="page-sub">Catalog, pricing, and stock alerts</p>
         </div>
         <button class="btn btn-primary" onclick="openProductModal()">Add product</button>
       </div>
 
-      <div class="tbl-wrap">
+      <div class="inventory-toolbar">
+        <input type="search" id="inventorySearch" placeholder="Search products…" oninput="renderInventory()" autocomplete="off"/>
+      </div>
+
+      <div class="product-cards" id="inventoryCards"></div>
+
+      <div class="tbl-wrap" id="inventoryTableWrap">
         <table>
           <thead>
             <tr>
@@ -1065,7 +1132,6 @@ input:focus, select:focus, textarea:focus {
               <th>Category</th>
               <th>Price</th>
               <th>Cost</th>
-              <!-- branch stock headers injected -->
               <th id="inv-stock-heads" colspan="1" style="display:none"></th>
               <th>Min Alert</th>
               <th>Status</th>
@@ -3114,6 +3180,14 @@ function showInvoiceModal(sale) {
 // ═══════════════ 3. INVENTORY CRUD ═══════════════
 function renderInventory() {
   const branches = getBranches();
+  const q = (document.getElementById('inventorySearch')?.value || '').trim().toLowerCase();
+  const list = !q
+    ? products
+    : products.filter(p =>
+        (p.name || '').toLowerCase().includes(q) ||
+        (p.cat || '').toLowerCase().includes(q)
+      );
+
   const headRow = document.querySelector('#tab-inventory thead tr');
   if (headRow) {
     headRow.innerHTML = `
@@ -3122,29 +3196,73 @@ function renderInventory() {
       <th>Min Alert</th><th>Status</th><th>Actions</th>`;
   }
   const body = document.getElementById('inventoryBody');
-  if (!products.length) {
-    body.innerHTML = `<tr><td colspan="${7 + branches.length}" style="text-align:center;padding:24px;color:var(--text-muted)">No products yet</td></tr>`;
+  const cards = document.getElementById('inventoryCards');
+
+  if (!list.length) {
+    const emptyMsg = products.length
+      ? 'No products match your search'
+      : 'No products yet — tap Add product';
+    if (body) {
+      body.innerHTML = `<tr><td colspan="${7 + branches.length}" style="text-align:center;padding:24px;color:var(--text-muted)">${emptyMsg}</td></tr>`;
+    }
+    if (cards) {
+      cards.innerHTML = `<div class="product-cards-empty">${emptyMsg}</div>`;
+    }
     return;
   }
-  body.innerHTML = products.map(p => {
-    const reorder = p.reorder || 5;
-    const stocks = branches.map(b => getProductStock(p, b.id));
-    const ok = stocks.every(s => s > reorder);
-    return `
-      <tr>
-        <td style="font-weight:700">${p.name}</td>
-        <td><span class="badge badge-generic">${p.cat || ''}</span></td>
-        <td style="font-weight:700;color:var(--theme-primary)">${fmtMoney(p.price)}</td>
-        <td style="color:var(--text-muted)">${fmtMoney(p.cost || 0)}</td>
-        ${branches.map((b, i) => `<td style="font-weight:600;color:${stocks[i] <= reorder ? 'var(--red)' : 'inherit'}">${stocks[i]}</td>`).join('')}
-        <td>${reorder}</td>
-        <td><span class="badge ${ok ? 'badge-ok' : 'badge-low'}">${ok ? 'IN STOCK' : 'LOW'}</span></td>
-        <td>
-          <button class="btn btn-sm btn-outline" onclick="openProductModal('${p.id}')">Edit</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">Del</button>
-        </td>
-      </tr>`;
-  }).join('');
+
+  if (body) {
+    body.innerHTML = list.map(p => {
+      const reorder = p.reorder || 5;
+      const stocks = branches.map(b => getProductStock(p, b.id));
+      const ok = stocks.every(s => s > reorder);
+      return `
+        <tr>
+          <td style="font-weight:700">${p.name}</td>
+          <td><span class="badge badge-generic">${p.cat || ''}</span></td>
+          <td style="font-weight:700;color:var(--theme-primary)">${fmtMoney(p.price)}</td>
+          <td style="color:var(--text-muted)">${fmtMoney(p.cost || 0)}</td>
+          ${branches.map((b, i) => `<td style="font-weight:600;color:${stocks[i] <= reorder ? 'var(--red)' : 'inherit'}">${stocks[i]}</td>`).join('')}
+          <td>${reorder}</td>
+          <td><span class="badge ${ok ? 'badge-ok' : 'badge-low'}">${ok ? 'IN STOCK' : 'LOW'}</span></td>
+          <td>
+            <button class="btn btn-sm btn-outline" onclick="openProductModal('${p.id}')">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">Del</button>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  if (cards) {
+    cards.innerHTML = list.map(p => {
+      const reorder = p.reorder || 5;
+      const stocks = branches.map(b => ({ name: b.name, qty: getProductStock(p, b.id) }));
+      const ok = stocks.every(s => s.qty > reorder);
+      return `
+        <article class="product-card">
+          <div class="product-card-top">
+            <div class="product-card-name">${p.name}</div>
+            <span class="badge ${ok ? 'badge-ok' : 'badge-low'}">${ok ? 'In stock' : 'Low'}</span>
+          </div>
+          <div class="product-card-meta">
+            <span class="badge badge-generic">${p.cat || 'General'}</span>
+            <span class="product-card-price">${fmtMoney(p.price)}</span>
+            <span class="product-card-cost">Cost ${fmtMoney(p.cost || 0)} · Min ${reorder}</span>
+          </div>
+          <div class="product-card-stocks">
+            ${stocks.map(s => `
+              <div class="product-stock-row">
+                <span class="label">${s.name}</span>
+                <span class="qty ${s.qty <= reorder ? 'low' : ''}">${s.qty}</span>
+              </div>`).join('')}
+          </div>
+          <div class="product-card-actions">
+            <button class="btn btn-sm btn-outline" onclick="openProductModal('${p.id}')">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.id}')">Delete</button>
+          </div>
+        </article>`;
+    }).join('');
+  }
 }
 
 function openProductModal(id = null) {
