@@ -326,7 +326,7 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 }
 .hdr-logout:hover { border-color: var(--ink); color: var(--ink); }
 
-.app-body { display: flex; flex: 1; min-height: 0; }
+.app-body { display: flex; flex: 1; min-height: 0; min-width: 0; width: 100%; overflow-x: clip; }
 #navBar {
   width: 156px; flex-shrink: 0; background: transparent;
   border-right: none; display: flex; flex-direction: column; gap: 2px;
@@ -344,7 +344,7 @@ button, .nav-tab, .menu-card, .tenant-item, .role-btn, .pin-btn {
 }
 .nav-tab.adm-only { display: none; }
 
-#mainContent { flex: 1; padding: 18px 20px 28px; max-width: none; width: 100%; margin: 0; min-width: 0; }
+#mainContent { flex: 1; padding: 18px 20px 28px; max-width: none; width: 100%; margin: 0; min-width: 0; overflow-x: clip; }
 
 .page-title {
   font-family: var(--display); font-size: 1.45rem; font-weight: 700;
@@ -454,15 +454,24 @@ input:focus, select:focus, textarea:focus {
 .branding-preview-card:hover { border-color: var(--signal); border-style: solid; background: #fff; }
 .branding-logo-preview { max-width: 140px; max-height: 90px; object-fit: contain; margin-bottom: 8px; }
 
-#billingWrap { display: grid; grid-template-columns: 1fr 330px; gap: 14px; align-items: start; }
-.menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px; }
+#billingWrap { display: grid; grid-template-columns: 1fr 330px; gap: 14px; align-items: start; min-width: 0; }
+#billingWrap > * { min-width: 0; }
+.menu-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(136px, 1fr)); gap: 8px;
+  width: 100%; min-width: 0;
+}
 .menu-card {
   background: #fff; border: 1px solid var(--border); border-radius: var(--radius);
   padding: 12px; cursor: pointer; box-shadow: var(--soft-shadow);
+  min-width: 0; overflow: hidden;
 }
 .menu-card:hover { border-color: var(--signal); background: var(--signal-soft); }
 .menu-card.oos { opacity: .35; pointer-events: none; }
-.mc-name { font-size: .86rem; font-weight: 650; margin: 6px 0 4px; line-height: 1.25; }
+.mc-name {
+  font-size: .86rem; font-weight: 650; margin: 6px 0 4px; line-height: 1.25;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  word-break: break-word;
+}
 .mc-price {
   font-family: var(--num); font-size: 1.05rem; font-weight: 650;
   letter-spacing: -.015em; font-variant-numeric: tabular-nums;
@@ -587,6 +596,7 @@ input:focus, select:focus, textarea:focus {
 
 /* ── Responsive ── */
 @media (max-width: 960px) {
+  html, body { overflow-x: hidden; max-width: 100vw; }
   .app-body { flex-direction: column; }
   #navBar {
     width: 100%; height: auto; position: sticky; top: 52px; z-index: 190;
@@ -602,21 +612,53 @@ input:focus, select:focus, textarea:focus {
   }
   .stat-grid { grid-template-columns: 1fr 1fr; }
   #billingWrap {
-    grid-template-columns: 1fr;
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+    overflow-x: hidden;
+  }
+  #billingWrap > div:first-child {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .billing-toolbar {
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 0;
+  }
+  .billing-toolbar input, .billing-toolbar select {
+    flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .cat-filters {
+    max-width: 100%;
   }
   .cart-panel {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 300;
+    width: 100%;
+    max-width: 100%;
     max-height: min(88vh, 680px);
     border-radius: 16px 16px 0 0;
     transform: translateY(110%);
     transition: transform .28s cubic-bezier(.2,.8,.2,1);
     box-shadow: 0 -12px 40px rgba(0,0,0,.2);
+    /* Keep sheet out of document flow width calculations */
+    margin: 0;
   }
   .cart-panel.open { transform: translateY(0); }
   .cart-sheet-close { display: inline-flex; align-items: center; justify-content: center; }
   body.cart-open { overflow: hidden; }
-  .menu-grid { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px; }
+  .menu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+  }
+  .menu-card { min-width: 0; }
   .qty-btn { width: 34px; height: 34px; font-size: 1.05rem; }
   .pin-pad { max-width: 300px; gap: 10px; }
   .pin-btn { padding: 18px 0; min-height: 54px; font-size: 1.3rem; }
@@ -676,9 +718,13 @@ input:focus, select:focus, textarea:focus {
   .billing-toolbar input, .billing-toolbar select {
     flex: 1 1 100%; width: 100%; min-width: 0;
   }
-  .menu-grid { grid-template-columns: repeat(2, 1fr); }
-  .menu-card { padding: 12px 10px; min-height: 96px; }
+  .menu-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .menu-card { padding: 12px 10px; min-height: 96px; min-width: 0; }
   .mc-name { font-size: .84rem; }
+  .mc-price { font-size: 1rem; }
   .btn { min-height: 42px; padding: 10px 14px; }
   .btn-sm { min-height: 36px; }
   .modal-overlay {
@@ -709,7 +755,9 @@ input:focus, select:focus, textarea:focus {
 
 @media (max-width: 380px) {
   .stat-grid { grid-template-columns: 1fr; }
-  .menu-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .menu-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .menu-card { padding: 10px 8px; min-height: 88px; }
+  .mc-name { font-size: .8rem; }
 }
 
 @media print {
