@@ -2090,22 +2090,36 @@ function isShopLinkMode() {
   return isDirectCustomerView || !!getWorkspaceParam() || !!getLockedShopId();
 }
 
+/** A signed-in master super-admin may exit shop-link mode back to the shops list */
+function hasMasterAccess() {
+  return !!getSuperToken();
+}
+
+function exitShopLinkMode() {
+  isDirectCustomerView = false;
+  try { sessionStorage.removeItem(SHOP_LOCK_KEY); } catch (e) {}
+  if (getWorkspaceParam() && window.history && window.history.replaceState) {
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+}
+
 /** Hide master-console controls when opened via shop link */
 function applyShopLinkChrome() {
   const shop = isShopLinkMode();
+  const master = shop && hasMasterAccess();
   isDirectCustomerView = shop;
 
-  const hide = (id) => {
+  const hide = (id, keepVisible) => {
     const el = document.getElementById(id);
-    if (el) el.style.display = shop ? 'none' : '';
+    if (el) el.style.display = (shop && !keepVisible) ? 'none' : '';
   };
-  hide('btnBackToMaster');
-  hide('btnCopyShopLink');
-  hide('btnPortalDbConfig');
-  hide('btnHdrSwitchClient');
+  hide('btnBackToMaster', master);
+  hide('btnCopyShopLink', master);
+  hide('btnPortalDbConfig', master);
+  hide('btnHdrSwitchClient', master);
 
   const footer = document.getElementById('roleSelectFooter');
-  if (footer) footer.style.display = shop ? 'none' : 'flex';
+  if (footer) footer.style.display = (shop && !master) ? 'none' : 'flex';
 
   // Never show master login / shop picker on a shop link
   if (shop) {
@@ -2173,10 +2187,11 @@ function showSuperAdminLogin() {
 }
 
 function showTenantSelect() {
-  if (isShopLinkMode()) {
+  if (isShopLinkMode() && !hasMasterAccess()) {
     if (currentTenant) chooseTenant(currentTenant.id, true);
     return;
   }
+  if (isShopLinkMode()) exitShopLinkMode();
   const sa = document.getElementById('superAdminLoginView');
   const ts = document.getElementById('tenantSelectView');
   if (sa) sa.style.display = 'none';
@@ -2362,7 +2377,11 @@ async function loadTenants(opts = {}) {
 
   if (!skipRouting) {
     const target = getWorkspaceParam() || getLockedShopId();
-    if (target) {
+    // A signed-in master admin is not trapped by a stale session shop-lock
+    if (target && !getWorkspaceParam() && hasMasterAccess()) {
+      exitShopLinkMode();
+    }
+    if (target && isShopLinkMode()) {
       lockToShop(target);
       applyShopLinkChrome();
       document.getElementById('superAdminLoginView').style.display = 'none';
@@ -2669,15 +2688,17 @@ function renderRoleButtons() {
 
 
 function backToTenantSelect() {
-  // Shop-link users stay on this shop only — never open master console
-  if (isShopLinkMode()) {
+  // Shop-link visitors stay on this shop only — never open master console
+  if (isShopLinkMode() && !hasMasterAccess()) {
     if (currentTenant) chooseTenant(currentTenant.id, true);
     return;
   }
+  exitShopLinkMode();
   document.getElementById('roleSelectView').style.display = 'none';
   document.getElementById('pinEntryView').style.display = 'none';
   if (getSuperToken() || getAuthToken()) {
     showTenantSelect();
+    loadTenants({ skipRouting: true, requireAuth: true });
   } else {
     showSuperAdminLogin();
   }
@@ -2860,7 +2881,7 @@ function logout() {
   document.getElementById('portalScreen').style.display = 'flex';
 
   // Keep shop-link sessions isolated: clear staff token only, never open master
-  if (isShopLinkMode()) {
+  if (isShopLinkMode() && !hasMasterAccess()) {
     clearSessionAuth();
     if (currentTenant) chooseTenant(currentTenant.id, true);
     else {
@@ -2870,6 +2891,7 @@ function logout() {
     return;
   }
 
+  exitShopLinkMode();
   clearSessionAuth();
   const superTok = getSuperToken();
   if (superTok) {
@@ -2882,7 +2904,7 @@ function logout() {
 }
 
 function promptSwitchTenant() {
-  if (isShopLinkMode()) {
+  if (isShopLinkMode() && !hasMasterAccess()) {
     toast('This link is locked to one shop', 'warn');
     return;
   }
@@ -4116,7 +4138,7 @@ function resetApiUrlToDefault() {
 }
 
 function openDbConfigModal() {
-  if (isShopLinkMode()) {
+  if (isShopLinkMode() && !hasMasterAccess()) {
     toast('API settings are only available in the master console', 'warn');
     return;
   }
