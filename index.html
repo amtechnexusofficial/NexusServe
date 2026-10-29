@@ -1519,6 +1519,14 @@ input:focus, select:focus, textarea:focus {
           <p id="admBranchLimitHint" style="font-size:.78rem;color:var(--text-muted);margin-bottom:10px"></p>
           <div id="admBranchesList"></div>
           <button type="button" class="btn btn-outline btn-sm" id="btnAddAdminBranch" onclick="addAdminBranchRow()">Add branch</button>
+
+          <hr style="border:none;border-top:1px solid var(--border);margin:16px 0"/>
+
+          <h4 style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:6px">Access</h4>
+          <div class="form-group">
+            <label>Administrator PIN</label>
+            <input type="password" id="adm-adminPin" maxlength="8" autocomplete="new-password" placeholder="Leave blank to keep current PIN"/>
+          </div>
         </div>
       </div>
 
@@ -4031,6 +4039,13 @@ async function saveTenantBranding() {
   const currency = document.getElementById('adm-currency').value.trim() || '$';
   const gstRate = parseFloat(document.getElementById('adm-gstRate').value) || 0;
   const { branches, pinPlaintext } = collectAdminBranches();
+  const adminPinInput = document.getElementById('adm-adminPin');
+  const adminPin = adminPinInput ? adminPinInput.value.trim() : '';
+  if (adminPin && adminPin.length < 4) {
+    toast('Administrator PIN must be at least 4 digits', 'err');
+    return;
+  }
+  if (adminPin) pinPlaintext.admin = adminPin;
   if (!branches.length) { toast('Add at least one branch', 'err'); return; }
   const maxAllowed = getMaxBranches(currentTenant);
   if (branches.length > maxAllowed) {
@@ -4066,6 +4081,7 @@ async function saveTenantBranding() {
   if (data && data.success) {
     toast('Brand settings saved', 'ok');
     if (data.tenant) currentTenant = { ...currentTenant, ...data.tenant };
+    if (adminPinInput) adminPinInput.value = '';
   } else {
     currentTenant = prevTenant;
     applyTenantTheme(currentTenant);
